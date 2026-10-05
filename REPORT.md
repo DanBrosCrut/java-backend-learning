@@ -185,7 +185,7 @@ OS name: "windows 11", version: "10.0", arch: "amd64", family: "windows"
 {
   "maven.executable.path": "C:/Users/Home/.sdkman/candidates/maven/current/bin/mvn.cmd"
 }
-
+```
 ---
 
 ## Репозиторий
@@ -222,46 +222,72 @@ OS name: "windows 11", version: "10.0", arch: "amd64", family: "windows"
 | Порт приложения | 8080 |
 
 ### Структура проекта
-health-service/
-├── pom.xml
-├── mvnw
-├── mvnw.cmd
+```
+java-backend-learning/
+├── README.md                    ← этот файл
+├── REPORT.md                    ← недельный отчёт
 ├── .gitignore
-└── src/
-└── main/
-├── java/
-│ └── com/example/health_service/
-│ ├── HealthServiceApplication.java ← @SpringBootApplication, точка входа
-│ └── HealthController.java ← @RestController, GET /health
-└── resources/
-└── application.properties
+├── docs/                        ← конспекты и заметки
+│   ├── agile-scrum.md           ← Agile, Scrum, роли, артефакты, DoD
+│   ├── environment.md           ← версии Java, Maven, настройка SDKMAN
+│   └── moysklad.md              ← МойСклад + онлайн-заказ
+└── health-service/              ← минимальный Spring Boot сервис
+    ├── pom.xml
+    ├── mvnw
+    ├── mvnw.cmd
+    └── src/
+        └── main/
+            ├── java/com/example/health_service/
+            │   ├── HealthServiceApplication.java
+            │   └── HealthController.java
+            └── resources/
+                └── application.properties
+```
 
+---
 
 Как собрать
 
+```
 cd health-service
 mvn clean package
 В папке target/ появляется health-service-0.0.1-SNAPSHOT.jar.
+```
 
 Как запустить
 Вариант 1 — через Maven:
 
+```
 cd health-service
 mvn spring-boot:run
+```
+
 Вариант 2 — через собранный JAR:
 
+```
 java -jar target/health-service-0.0.1-SNAPSHOT.jar
+```
+
 Ожидаемый вывод в логах:
 
+```
 Tomcat started on port 8080 (http) with context path '/'
 Started HealthServiceApplication in 1.124 seconds
+```
+
 Как проверить
 Во втором терминале (первый занят приложением):
 
+```
 curl http://localhost:8080/health
+```
+
 Ответ:
 
+```
 ok
+```
+
 Через браузер: http://localhost:8080/health → ok.
 
 Что разобрал по ходу
