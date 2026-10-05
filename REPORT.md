@@ -1,6 +1,7 @@
 # Отчёт по неделе 1 (02.10 – 07.10)
 
 ## Agile и Scrum
+**Дата:** 02.10.2026
 
 ### Чем Agile отличается от «водопада»
 
@@ -128,6 +129,8 @@ DoD обеспечивает прозрачность: все понимают, 
 
 # Окружение
 
+**Дата:** 04.10.2026
+
 ## Java
 
 Установлена **Temurin 21.0.10 LTS** (Eclipse Adoptium).
@@ -196,3 +199,138 @@ OS name: "windows 11", version: "10.0", arch: "amd64", family: "windows"
 
 - Scrum Guide 2020 (русский): https://scrumguides.org/download.html
 - МойСклад: https://www.moysklad.ru/
+
+---
+
+## Spring Boot: health-service
+
+**Дата:** 05.10.2026
+
+### Что сделано
+
+Создан минимальный Spring Boot проект `health-service` с эндпоинтом `GET /health`, возвращающим `ok`. Проект размещён внутри учебного репозитория `java-backend-learning` в папке `health-service/`. Репозиторий связан с GitHub, все изменения запушены.
+
+### Технологии и версии
+
+| Компонент | Версия |
+|-----------|--------|
+| Spring Boot | 4.1.1 |
+| Java | 21.0.2 LTS (Temurin) |
+| Maven | 3.9.10 |
+| Apache Tomcat | 11.0.24 (embedded) |
+| Spring Web | Spring MVC |
+| Порт приложения | 8080 |
+
+### Структура проекта
+health-service/
+├── pom.xml
+├── mvnw
+├── mvnw.cmd
+├── .gitignore
+└── src/
+└── main/
+├── java/
+│ └── com/example/health_service/
+│ ├── HealthServiceApplication.java ← @SpringBootApplication, точка входа
+│ └── HealthController.java ← @RestController, GET /health
+└── resources/
+└── application.properties
+
+
+Как собрать
+
+cd health-service
+mvn clean package
+В папке target/ появляется health-service-0.0.1-SNAPSHOT.jar.
+
+Как запустить
+Вариант 1 — через Maven:
+
+cd health-service
+mvn spring-boot:run
+Вариант 2 — через собранный JAR:
+
+java -jar target/health-service-0.0.1-SNAPSHOT.jar
+Ожидаемый вывод в логах:
+
+Tomcat started on port 8080 (http) with context path '/'
+Started HealthServiceApplication in 1.124 seconds
+Как проверить
+Во втором терминале (первый занят приложением):
+
+curl http://localhost:8080/health
+Ответ:
+
+ok
+Через браузер: http://localhost:8080/health → ok.
+
+Что разобрал по ходу
+Spring Boot
+Spring Boot — это надстройка над Spring Framework. Убирает boilerplate-конфигурацию через автоконфигурацию и стартеры.
+
+Стартеры (starters) — наборы зависимостей «под задачу». spring-boot-starter-web тянет Spring MVC, Jackson (JSON), validation, embedded Tomcat.
+
+Автоконфигурация — Spring Boot анализирует classpath и настраивает бины сам. Видит Tomcat → поднимает встроенный веб-сервер. Видит Spring MVC → настраивает DispatcherServlet.
+
+Embedded Tomcat — сервер встроен в приложение, не нужен внешний контейнер. Собирается в один JAR, запускается командой java -jar.
+
+@SpringBootApplication — комбинация @Configuration + @EnableAutoConfiguration + @ComponentScan. Точка входа в приложение.
+
+Spring Web MVC
+@RestController — комбинация @Controller + @ResponseBody. Возвращаемое значение метода идёт в тело HTTP-ответа, а не в имя view.
+
+@GetMapping("/health") — сокращение от @RequestMapping(method = RequestMethod.GET, value = "/health"). Обрабатывает только GET-запросы по пути /health.
+
+DispatcherServlet — центральный сервлет Spring MVC. Принимает все запросы и маршрутизирует их по контроллерам на основе @RequestMapping.
+
+Maven
+Maven lifecycle — последовательность фаз: validate → compile → test → package → verify → install → deploy. Каждая фаза запускает предыдущие.
+
+mvn clean package — удаляет target/, компилирует, прогоняет тесты, собирает JAR.
+
+spring-boot-starter-parent — родительский POM, задаёт версии зависимостей, конфигурацию плагинов, дефолтные настройки.
+
+spring-boot-maven-plugin — плагин, который собирает executable JAR (fat JAR со всеми зависимостями) и предоставляет команду mvn spring-boot:run.
+
+Java-конвенции именования
+Пакеты пишутся в нижнем регистре, без дефисов. Spring Initializr автоматически преобразовал artifact id health-service → package health_service.
+
+Package declaration должен совпадать с физическим расположением файла. Если файл лежит в com/example/health_service/, то первая строка — package com.example.health_service;.
+
+###Литература
+
+Прочитано ~6 источников технической документации:
+
+Spring Boot Reference Documentation — https://docs.spring.io/spring-boot/index.html
+
+  Getting Started → Installing Spring Boot
+
+  Getting Started → Developing Your First Spring Boot Application
+
+  Reference → Core Principles (автоконфигурация, стартеры, embedded-сервер)
+
+Spring Framework Reference — Web MVC — https://docs.spring.io/spring-framework/reference/web/webmvc.html
+
+  DispatcherServlet — центральный сервлет Spring MVC
+
+  Annotated Controllers (@RestController, @GetMapping)
+
+Apache Maven — Getting Started — https://maven.apache.org/guides/getting-started/
+
+  Introduction to the Build Lifecycle
+
+  POM Reference (структура pom.xml, parent, dependencies, plugins)
+
+Spring Initializr — https://start.spring.io/
+
+  Разбор параметров генерации: Maven, Java 21, Spring Boot 4.1.1, Spring Web
+
+Apache Tomcat 11 Documentation — https://tomcat.apache.org/tomcat-11.0-doc/index.html
+
+  Архитектура: Connector, Engine, Host, Context
+
+  Embedded Tomcat — запуск внутри приложения
+
+SDKMAN Usage — https://sdkman.io/usage
+
+  Управление версиями Java и Maven
