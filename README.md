@@ -106,11 +106,11 @@ java -jar target/health-service-0.0.1-SNAPSHOT.jar
 - [SDKMAN Usage](https://sdkman.io/usage)
 - [Apache Tomcat 11](https://tomcat.apache.org/tomcat-11.0-doc/index.html)
 
-## 📝 Отчёт по неделе
+## Отчёт по неделе
 
 Смотри [REPORT.md](REPORT.md).
 
-## 🔗 Полезные ссылки
+## Полезные ссылки
 
 - Репозиторий: https://github.com/<твой-username>/java-backend-learning
 - МойСклад: https://www.moysklad.ru/
