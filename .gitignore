@@ -40,3 +40,8 @@ release.properties
 # OS
 .DS_Store
 Thumbs.db
+
+#opencode
+.env
+opencode.jsonc
+.fake
