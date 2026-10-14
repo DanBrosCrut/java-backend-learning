@@ -42,6 +42,8 @@ release.properties
 Thumbs.db
 
 #opencode
+.env.example
 .env
+*.env
 opencode.jsonc
 .fake

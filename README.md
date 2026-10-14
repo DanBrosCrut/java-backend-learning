@@ -120,7 +120,7 @@ java -jar target/health-service-0.0.1-SNAPSHOT.jar
 ## Переменные окружения
 
 Создай `.env` в корне `health-service/`:
-MOYSKLAD_TOKEN=98f5fb54406d239343823cc88628420c714c9cec
+MOYSKLAD_TOKEN="MOYSKLADTOKEN"
 Токен берётся из: МойСклад → Настройки → Пользователи → Токены.
 
 
