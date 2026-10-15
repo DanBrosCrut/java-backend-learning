@@ -2,13 +2,9 @@ package com.example.moysklad.api.service;
 
 import com.example.moysklad.api.client.MoyskladClient;
 import com.example.moysklad.api.dto.ProductDto;
+import com.example.moysklad.api.mapper.ProductMapper;
 import org.springframework.stereotype.Service;
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 
-import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -18,17 +14,17 @@ import java.util.List;
 public class ProductService {
 
     private final MoyskladClient moyskladClient;
-    private final ObjectMapper objectMapper;
+    private final ProductMapper productMapper;
 
     /**
-     * Creates the service with the MoySklad client and JSON mapper.
+     * Creates the service with the MoySklad client and product mapper.
      *
      * @param moyskladClient the MoySklad API client
-     * @param objectMapper   the JSON mapper
+     * @param productMapper  the Remap-to-product mapper
      */
-    public ProductService(MoyskladClient moyskladClient, ObjectMapper objectMapper) {
+    public ProductService(MoyskladClient moyskladClient, ProductMapper productMapper) {
         this.moyskladClient = moyskladClient;
-        this.objectMapper = objectMapper;
+        this.productMapper = productMapper;
     }
 
     /**
@@ -37,31 +33,8 @@ public class ProductService {
      * @return the list of products from the MoySklad assortment
      */
     public List<ProductDto> getProducts() {
-        String json = moyskladClient.getAssortment();
-        List<ProductDto> products = new ArrayList<>();
-        try {
-            JsonNode rows = objectMapper.readTree(json).path("rows");
-            for (JsonNode row : rows) {
-                products.add(new ProductDto(
-                        row.path("id").asText(),
-                        row.path("name").asText(),
-                        row.path("article").asText(),
-                        extractPrice(row)));
-            }
-        } catch (JacksonException e) {
-            throw new IllegalStateException("Failed to parse MoySklad assortment response", e);
-        }
-        return products;
-    }
-
-    private String extractPrice(JsonNode row) {
-        JsonNode salePrices = row.path("salePrices");
-        if (salePrices.isArray() && !salePrices.isEmpty()) {
-            JsonNode value = salePrices.get(0).path("value");
-            if (value.isNumber()) {
-                return BigDecimal.valueOf(value.asLong()).movePointLeft(2).toPlainString();
-            }
-        }
-        return null;
+        return moyskladClient.getAssortment().rows().stream()
+                .map(productMapper::toDto)
+                .toList();
     }
 }
