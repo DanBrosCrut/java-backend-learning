@@ -1,6 +1,6 @@
 package com.example.moysklad.api.client;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.example.moysklad.api.config.MoyskladProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -15,15 +15,12 @@ public class MoyskladClient {
     /**
      * Creates the client and configures it with the MoySklad base URL and bearer token.
      *
-     * @param baseUrl the MoySklad API base URL
-     * @param token   the MoySklad bearer token
+     * @param properties the typed MoySklad configuration properties
      */
-    public MoyskladClient(
-            @Value("${moysklad.base-url}") String baseUrl,
-            @Value("${moysklad.token}") String token) {
+    public MoyskladClient(MoyskladProperties properties) {
         this.restClient = RestClient.builder()
-                .baseUrl(baseUrl)
-                .defaultHeader("Authorization", "Bearer " + token)
+                .baseUrl(properties.baseUrl())
+                .defaultHeader("Authorization", "Bearer " + properties.token())
                 .build();
     }
 
