@@ -23,7 +23,7 @@ java-backend-learning/
     ├── pom.xml
     ├── .env                     ← в .gitignore
     └── src/main/java/com/example/health_service/
-        ├── HealthServiceApplication.java
+        ├── MoyskladApiApplication.java
         ├── HealthController.java
         ├── client/
         │   └── MoyskladClient.java
