@@ -19,10 +19,10 @@ java-backend-learning/
 │   ├── git-workflow.md          ← merge, rebase, cherry-pick
 │   ├── semver.md                ← SemVer
 │   └── ...
-└── health-service/              ← Spring Boot проект
+└── moysklad-api/                ← Spring Boot проект
     ├── pom.xml
     ├── .env                     ← в .gitignore
-    └── src/main/java/com/example/health_service/
+    └── src/main/java/com/example/moysklad/api/
         ├── MoyskladApiApplication.java
         ├── HealthController.java
         ├── client/
@@ -55,18 +55,18 @@ sdk install maven
 ## Как собрать
 
 ```
-cd health-service
+cd moysklad-api
 mvn clean package
 ```
 
-После успешной сборки в папке `target/` появится `health-service-0.0.1-SNAPSHOT.jar`.
+После успешной сборки в папке `target/` появится `moysklad-api-0.0.1-SNAPSHOT.jar`.
 
 ## Как запустить
 
 ### Способ 1: через Maven
 
 ```
-cd health-service
+cd moysklad-api
 mvn spring-boot:run
 ```
 
@@ -75,9 +75,9 @@ mvn spring-boot:run
 ### Способ 2: через собранный JAR
 
 ```
-cd health-service
+cd moysklad-api
 mvn clean package
-java -jar target/health-service-0.0.1-SNAPSHOT.jar
+java -jar target/moysklad-api-0.0.1-SNAPSHOT.jar
 ```
 
 ## 🔌 API
@@ -86,7 +86,7 @@ java -jar target/health-service-0.0.1-SNAPSHOT.jar
 
 ## Конфигурация
 
-Файл `health-service/src/main/resources/application.properties`:
+Файл `moysklad-api/src/main/resources/application.properties`:
 
 ```
 # Порт приложения (по умолчанию 8080)
@@ -119,7 +119,7 @@ java -jar target/health-service-0.0.1-SNAPSHOT.jar
 
 ## Переменные окружения
 
-Создай `.env` в корне `health-service/`:
+Создай `.env` в корне `moysklad-api/`:
 MOYSKLAD_TOKEN="MOYSKLADTOKEN"
 Токен берётся из: МойСклад → Настройки → Пользователи → Токены.
 

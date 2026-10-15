@@ -1,7 +1,7 @@
-package com.example.health_service.controller;
+package com.example.moysklad.api.controller;
 
-import com.example.health_service.dto.ProductDto;
-import com.example.health_service.service.ProductService;
+import com.example.moysklad.api.dto.ProductDto;
+import com.example.moysklad.api.service.ProductService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;

@@ -1,4 +1,4 @@
-package com.example.health_service.dto;
+package com.example.moysklad.api.dto;
 
 /**
  * DTO товара, возвращаемый эндпоинтом {@code GET /api/products}.
