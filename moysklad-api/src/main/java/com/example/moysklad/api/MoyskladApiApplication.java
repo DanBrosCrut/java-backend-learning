@@ -1,13 +1,13 @@
-package com.example.health_service;
+package com.example.moysklad.api;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class HealthServiceApplication {
+public class MoyskladApiApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(HealthServiceApplication.class, args);
+		SpringApplication.run(MoyskladApiApplication.class, args);
 	}
 
 }

@@ -42,3 +42,24 @@ Stack: Java 21 LTS, Spring Boot 4.x, Maven.
 - MoySklad Remap 1.2: https://dev.moysklad.ru/doc/api/remap/1.2/
 - Product vision: `docs/product.md`
 - Backlog: `docs/backlog.md`
+
+## CRITICAL SECURITY RULES
+
+### FORBIDDEN
+- NEVER commit files: `.env`, `*.env`, `application-secrets.*`
+- NEVER print token values in chat, logs, or comments
+- NEVER write tokens to `.properties`, `.yml`, `.java`, or any tracked file
+- NEVER `git add .` without checking `git status` first
+- NEVER `git push --force` to `main` or shared branches
+
+### REQUIRED
+- ALWAYS use `.env` for secrets (it's in `.gitignore`)
+- ALWAYS verify `git status` before every commit
+- ALWAYS check if a file is in `.gitignore` before writing secrets
+- ALWAYS use `Closes #N` in PR descriptions, not commit messages
+
+### IF A SECRET IS COMMITTED
+1. STOP immediately
+2. Do NOT push
+3. Notify the user
+4. The token must be revoked and recreated
