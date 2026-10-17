@@ -1,0 +1,7 @@
+spring:
+  config:
+    import: "optional:file:../.env[.properties]"
+
+moysklad:
+  token: ${MOYSKLAD_TOKEN}
+  base-url: https://api.moysklad.ru/api/remap/1.2
