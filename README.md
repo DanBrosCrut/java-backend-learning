@@ -6,24 +6,31 @@
 
 ```
 java-backend-learning/
-├── README.md                    ← этот файл
+├── README.md                    ← запуск, env, структура
 ├── REPORT.md                    ← недельный отчёт
-├── .gitignore
-├── docs/                        ← конспекты и заметки
-│   ├── agile-scrum.md           ← Agile, Scrum, роли, артефакты, DoD
-│   ├── environment.md           ← версии Java, Maven, настройка SDKMAN
-│   └── moysklad.md              ← МойСклад + онлайн-заказ
-└── health-service/              ← минимальный Spring Boot сервис
+├── AGENTS.md                    ← инструкции для AI-агента
+├── .gitignore                   ← секреты, target/, IDE
+├── kilo.jsonc                   ← MCP конфиг (в .gitignore)
+├── .env.example                 ← шаблон (без токена)
+├── docs/
+│   ├── product.md               ← видение продукта
+│   ├── backlog.md               ← Product Backlog
+│   ├── sprint-2.md              ← Sprint Backlog
+│   ├── git-workflow.md          ← merge, rebase, cherry-pick
+│   ├── semver.md                ← SemVer
+│   └── ...
+└── health-service/              ← Spring Boot проект
     ├── pom.xml
-    ├── mvnw
-    ├── mvnw.cmd
-    └── src/
-        └── main/
-            ├── java/com/example/health_service/
-            │   ├── HealthServiceApplication.java
-            │   └── HealthController.java
-            └── resources/
-                └── application.properties
+    ├── .env                     ← в .gitignore
+    └── src/main/java/com/example/health_service/
+        ├── HealthServiceApplication.java
+        ├── HealthController.java
+        ├── client/
+        │   └── MoyskladClient.java
+        ├── dto/
+        │   └── ProductDto.java
+        └── controller/
+            └── ProductController.java
 ```
 
 ## Требования
@@ -109,6 +116,12 @@ java -jar target/health-service-0.0.1-SNAPSHOT.jar
 ## Отчёт по неделе
 
 Смотри [REPORT.md](REPORT.md).
+
+## Переменные окружения
+
+Создай `.env` в корне `health-service/`:
+MOYSKLAD_TOKEN=
+Токен берётся из: МойСклад → Настройки → Пользователи → Токены.
 
 ## Полезные ссылки
 
