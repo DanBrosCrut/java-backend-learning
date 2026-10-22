@@ -17,15 +17,17 @@ public class ProductMapper {
     /**
      * Converts a Remap assortment row to a product DTO.
      *
-     * @param row the Remap assortment row
-     * @return the mapped product DTO
+     * @param row   the Remap assortment row
+     * @param stock the current stock quantity of the product, or {@code null} if unknown
+     * @return the mapped product DTO with stock defaulting to zero when unknown
      */
-    public ProductDto toDto(RemapAssortmentRow row) {
+    public ProductDto toDto(RemapAssortmentRow row, BigDecimal stock) {
         return new ProductDto(
                 row.id(),
                 row.name(),
                 row.article() == null ? "" : row.article(),
-                extractPrice(row.salePrices()));
+                extractPrice(row.salePrices()),
+                stock == null ? BigDecimal.ZERO : stock);
     }
 
     private String extractPrice(List<RemapSalePrice> salePrices) {

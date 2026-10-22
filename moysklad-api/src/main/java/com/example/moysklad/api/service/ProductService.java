@@ -3,38 +3,49 @@ package com.example.moysklad.api.service;
 import com.example.moysklad.api.client.MoyskladClient;
 import com.example.moysklad.api.dto.ProductDto;
 import com.example.moysklad.api.mapper.ProductMapper;
+import com.example.moysklad.api.mapper.StockReportMapper;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Service that maps the MoySklad assortment catalog to product DTOs.
+ * Service that maps the MoySklad assortment catalog to product DTOs enriched with stock data.
  */
 @Service
 public class ProductService {
 
     private final MoyskladClient moyskladClient;
     private final ProductMapper productMapper;
+    private final StockReportMapper stockReportMapper;
 
     /**
-     * Creates the service with the MoySklad client and product mapper.
+     * Creates the service with the MoySklad client and mappers.
      *
-     * @param moyskladClient the MoySklad API client
-     * @param productMapper  the Remap-to-product mapper
+     * @param moyskladClient    the MoySklad API client
+     * @param productMapper     the Remap-to-product mapper
+     * @param stockReportMapper the stock report parser
      */
-    public ProductService(MoyskladClient moyskladClient, ProductMapper productMapper) {
+    public ProductService(MoyskladClient moyskladClient,
+                          ProductMapper productMapper,
+                          StockReportMapper stockReportMapper) {
         this.moyskladClient = moyskladClient;
         this.productMapper = productMapper;
+        this.stockReportMapper = stockReportMapper;
     }
 
     /**
-     * Fetches the assortment and maps it to a list of product DTOs.
+     * Fetches the assortment and the stock report, merges them by product ID,
+     * and maps the result to a list of product DTOs.
+     * Products missing from the stock report get a stock of zero.
      *
-     * @return the list of products from the MoySklad assortment
+     * @return the list of products from the MoySklad assortment with current stock
      */
     public List<ProductDto> getProducts() {
+        Map<String, BigDecimal> stocks = stockReportMapper.toStockMap(moyskladClient.getStockReport());
         return moyskladClient.getAssortment().rows().stream()
-                .map(productMapper::toDto)
+                .map(row -> productMapper.toDto(row, stocks.get(row.id())))
                 .toList();
     }
 }

@@ -44,4 +44,22 @@ public class MoyskladClient {
                     ex);
         }
     }
+
+    /**
+     * Fetches the stock report from the Remap 1.2 API ({@code /report/stock/all}).
+     *
+     * @return the raw JSON string of the stock report
+     */
+    public String getStockReport() {
+        try {
+            return restClient.get()
+                    .uri("/report/stock/all")
+                    .retrieve()
+                    .body(String.class);
+        } catch (HttpClientErrorException ex) {
+            throw new MoyskladApiException(
+                    "MoySklad stock report request failed with status " + ex.getStatusCode().value(),
+                    ex);
+        }
+    }
 }
