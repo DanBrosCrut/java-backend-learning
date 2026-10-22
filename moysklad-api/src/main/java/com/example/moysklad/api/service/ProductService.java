@@ -1,7 +1,7 @@
-package com.example.health_service.service;
+package com.example.moysklad.api.service;
 
-import com.example.health_service.client.MoyskladClient;
-import com.example.health_service.dto.ProductDto;
+import com.example.moysklad.api.client.MoyskladClient;
+import com.example.moysklad.api.dto.ProductDto;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;

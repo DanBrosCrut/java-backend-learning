@@ -1,4 +1,4 @@
-package com.example.health_service.client;
+package com.example.moysklad.api.client;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;

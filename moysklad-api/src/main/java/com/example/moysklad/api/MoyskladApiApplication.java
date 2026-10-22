@@ -1,4 +1,4 @@
-package com.example.health_service;
+package com.example.moysklad.api;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
