@@ -1,5 +1,6 @@
 package com.example.moysklad.api.client;
 
+import com.example.moysklad.api.client.dto.RemapAssortmentResponse;
 import com.example.moysklad.api.config.MoyskladProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -27,12 +28,12 @@ public class MoyskladClient {
     /**
      * Fetches the assortment catalog from the Remap 1.2 API.
      *
-     * @return the raw assortment JSON response as a string
+     * @return the typed assortment response
      */
-    public String getAssortment() {
+    public RemapAssortmentResponse getAssortment() {
         return restClient.get()
                 .uri("/entity/assortment")
                 .retrieve()
-                .body(String.class);
+                .body(RemapAssortmentResponse.class);
     }
 }
