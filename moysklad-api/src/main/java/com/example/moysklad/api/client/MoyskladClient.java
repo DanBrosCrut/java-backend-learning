@@ -2,7 +2,9 @@ package com.example.moysklad.api.client;
 
 import com.example.moysklad.api.client.dto.RemapAssortmentResponse;
 import com.example.moysklad.api.config.MoyskladProperties;
+import com.example.moysklad.api.exception.MoyskladApiException;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -31,9 +33,15 @@ public class MoyskladClient {
      * @return the typed assortment response
      */
     public RemapAssortmentResponse getAssortment() {
-        return restClient.get()
-                .uri("/entity/assortment")
-                .retrieve()
-                .body(RemapAssortmentResponse.class);
+        try {
+            return restClient.get()
+                    .uri("/entity/assortment")
+                    .retrieve()
+                    .body(RemapAssortmentResponse.class);
+        } catch (HttpClientErrorException ex) {
+            throw new MoyskladApiException(
+                    "MoySklad assortment request failed with status " + ex.getStatusCode().value(),
+                    ex);
+        }
     }
 }
