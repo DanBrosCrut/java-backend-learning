@@ -1,7 +1,7 @@
 package com.example.moysklad.api.service;
 
 import com.example.moysklad.api.client.MoyskladClient;
-import com.example.moysklad.api.dto.ProductDto;
+import com.example.moysklad.api.dto.ProductView;
 import com.example.moysklad.api.mapper.ProductMapper;
 import com.example.moysklad.api.mapper.StockReportMapper;
 import org.springframework.stereotype.Service;
@@ -42,10 +42,12 @@ public class ProductService {
      *
      * @return the list of products from the MoySklad assortment with current stock
      */
-    public List<ProductDto> getProducts() {
+    public List<ProductView> getProducts() {
         Map<String, BigDecimal> stocks = stockReportMapper.toStockMap(moyskladClient.getStockReport());
-        return moyskladClient.getAssortment().rows().stream()
-                .map(row -> productMapper.toDto(row, stocks.get(row.id())))
-                .toList();
+        return java.util.Optional.ofNullable(moyskladClient.getAssortment().rows())
+                .map(rows -> rows.stream()
+                        .map(row -> productMapper.toDto(row, stocks.get(row.id())))
+                        .toList())
+                .orElse(List.of());
     }
 }

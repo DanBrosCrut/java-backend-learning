@@ -2,7 +2,7 @@ package com.example.moysklad.api.mapper;
 
 import com.example.moysklad.api.client.dto.RemapAssortmentRow;
 import com.example.moysklad.api.client.dto.RemapSalePrice;
-import com.example.moysklad.api.dto.ProductDto;
+import com.example.moysklad.api.dto.ProductView;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -19,10 +19,10 @@ public class ProductMapper {
      *
      * @param row   the Remap assortment row
      * @param stock the current stock quantity of the product, or {@code null} if unknown
-     * @return the mapped product DTO with stock defaulting to zero when unknown
+     * @return the mapped product view with stock defaulting to zero when unknown
      */
-    public ProductDto toDto(RemapAssortmentRow row, BigDecimal stock) {
-        return new ProductDto(
+    public ProductView toDto(RemapAssortmentRow row, BigDecimal stock) {
+        return new ProductView(
                 row.id(),
                 row.name(),
                 row.article() == null ? "" : row.article(),
@@ -38,6 +38,8 @@ public class ProductMapper {
         if (value == null || value.isBlank()) {
             return "";
         }
-        return BigDecimal.valueOf(new BigDecimal(value).longValue()).movePointLeft(2).toPlainString();
+        // Parse as BigDecimal from string to avoid floating-point artifacts, then convert from minor units
+        BigDecimal priceInMinorUnits = new BigDecimal(value);
+        return priceInMinorUnits.movePointLeft(2).toPlainString();
     }
 }
