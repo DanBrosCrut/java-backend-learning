@@ -2,6 +2,27 @@ spring:
   config:
     import: "optional:file:../.env[.properties]"
 
+# --- Actuator ---
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  info:
+    env:
+      enabled: true
+
+# --- Application info ---
+info:
+  app:
+    version: "@project.version@"
+
+# --- Logging: include correlation ID in console output ---
+logging:
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} [%X{correlationId}] - %msg%n'
+
+# --- MoySklad API ---
 moysklad:
   token: ${MOYSKLAD_TOKEN}
   base-url: https://api.moysklad.ru/api/remap/1.2
