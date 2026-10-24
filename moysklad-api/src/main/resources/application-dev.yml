@@ -1,0 +1,13 @@
+# --- Dev profile ---
+# Local development configuration. Activate with SPRING_PROFILES_ACTIVE=dev
+
+logging:
+  level:
+    # Debug logging for the application packages
+    com.example.moysklad.api: DEBUG
+    org.springframework.web: DEBUG
+
+# MoySklad API (local testing; token comes from .env via spring.config.import)
+moysklad:
+  token: ${MOYSKLAD_TOKEN}
+  base-url: https://api.moysklad.ru/api/remap/1.2
