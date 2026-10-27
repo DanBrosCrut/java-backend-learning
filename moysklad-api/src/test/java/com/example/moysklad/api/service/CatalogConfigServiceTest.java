@@ -10,6 +10,8 @@ import com.example.moysklad.api.dto.CatalogField;
 import com.example.moysklad.api.dto.CatalogFilter;
 import com.example.moysklad.api.dto.CatalogOptions;
 import com.example.moysklad.api.dto.PageOptions;
+import com.example.moysklad.api.dto.SortOptions;
+import com.example.moysklad.api.dto.SortOrder;
 import com.example.moysklad.api.exception.InvalidCatalogOptionException;
 import com.example.moysklad.api.exception.InvalidPaginationException;
 import org.junit.jupiter.api.BeforeEach;
@@ -131,6 +133,41 @@ class CatalogConfigServiceTest {
         assertThatThrownBy(() -> catalogConfigService.parseFilter(query))
                 .isInstanceOf(InvalidCatalogOptionException.class)
                 .hasMessageContaining("'q'");
+    }
+
+    @Test
+    void parseSort_fieldAndOrder_returnsSortOptions() {
+        SortOptions sort = catalogConfigService.parseSort(" Price ", " DESC ");
+
+        assertThat(sort.field()).isEqualTo(CatalogField.PRICE);
+        assertThat(sort.order()).isEqualTo(SortOrder.DESC);
+        assertThat(sort.isEmpty()).isFalse();
+    }
+
+    @Test
+    void parseSort_blankParameters_defaultsToNaturalAscending() {
+        SortOptions sort = catalogConfigService.parseSort(null, null);
+
+        assertThat(sort.field()).isNull();
+        assertThat(sort.order()).isEqualTo(SortOrder.ASC);
+        assertThat(sort.isEmpty()).isTrue();
+        assertThat(catalogConfigService.parseSort("  ", "").isEmpty()).isTrue();
+    }
+
+    @Test
+    void parseSort_unknownField_throwsInvalidCatalogOptionException() {
+        assertThatThrownBy(() -> catalogConfigService.parseSort("unknown", "asc"))
+                .isInstanceOf(InvalidCatalogOptionException.class)
+                .hasMessageContaining("unknown")
+                .hasMessageContaining("Allowed fields");
+    }
+
+    @Test
+    void parseSort_unknownOrder_throwsInvalidCatalogOptionException() {
+        assertThatThrownBy(() -> catalogConfigService.parseSort("price", "sideways"))
+                .isInstanceOf(InvalidCatalogOptionException.class)
+                .hasMessageContaining("sideways")
+                .hasMessageContaining("asc,desc");
     }
 
     private static RemapAssortmentRow row(String group, String priceType) {
