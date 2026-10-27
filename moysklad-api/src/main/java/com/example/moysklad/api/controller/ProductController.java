@@ -1,6 +1,7 @@
 package com.example.moysklad.api.controller;
 
 import com.example.moysklad.api.dto.CatalogConfigView;
+import com.example.moysklad.api.dto.CatalogFilter;
 import com.example.moysklad.api.dto.CatalogOptions;
 import com.example.moysklad.api.dto.PageOptions;
 import com.example.moysklad.api.dto.PagedResponse;
@@ -42,6 +43,7 @@ public class ProductController {
      *
      * @param priceType   the price type to show; empty means the first sale price
      * @param groups      comma-separated product group names; empty means all groups
+     * @param q           case-insensitive text matched against product name and article
      * @param fields      comma-separated fields to include; empty means all fields
      * @param inStockOnly whether to hide products with zero stock
      * @param page        the zero-based page index
@@ -56,6 +58,8 @@ public class ProductController {
             @RequestParam(required = false) String priceType,
             @Parameter(description = "Comma-separated product group names. Empty means all groups", example = "Товары")
             @RequestParam(required = false) String groups,
+            @Parameter(description = "Case-insensitive text matched against product name and article (max 100 chars)", example = "машин")
+            @RequestParam(required = false) String q,
             @Parameter(description = "Comma-separated fields: name, article, group, price, stock. Empty means all", example = "name,price,stock")
             @RequestParam(required = false) String fields,
             @Parameter(description = "Hide products with zero stock", example = "false")
@@ -65,8 +69,9 @@ public class ProductController {
             @Parameter(description = "Page size, from 1 to 100", example = "20")
             @RequestParam(defaultValue = "20") int size) {
         CatalogOptions options = catalogConfigService.parse(priceType, groups, fields, inStockOnly);
+        CatalogFilter filter = catalogConfigService.parseFilter(q);
         PageOptions pageOptions = catalogConfigService.parsePage(page, size);
-        return productService.getProducts(options, pageOptions);
+        return productService.getProducts(options, filter, pageOptions);
     }
 
     /**

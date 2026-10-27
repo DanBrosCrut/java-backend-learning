@@ -7,6 +7,7 @@ import com.example.moysklad.api.client.dto.RemapPriceType;
 import com.example.moysklad.api.client.dto.RemapSalePrice;
 import com.example.moysklad.api.dto.CatalogConfigView;
 import com.example.moysklad.api.dto.CatalogField;
+import com.example.moysklad.api.dto.CatalogFilter;
 import com.example.moysklad.api.dto.CatalogOptions;
 import com.example.moysklad.api.dto.PageOptions;
 import com.example.moysklad.api.exception.InvalidCatalogOptionException;
@@ -25,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests for {@link CatalogConfigService}: query parsing, pagination validation and option discovery.
+ * Tests for {@link CatalogConfigService}: query parsing, validation and option discovery.
  */
 @ExtendWith(MockitoExtension.class)
 class CatalogConfigServiceTest {
@@ -104,9 +105,32 @@ class CatalogConfigServiceTest {
         assertThatThrownBy(() -> catalogConfigService.parsePage(0, 0))
                 .isInstanceOf(InvalidPaginationException.class)
                 .hasMessageContaining("size");
-        assertThatThrownBy(() -> catalogConfigService.parsePage(0, CatalogConfigService.MAX_PAGE_SIZE + 1))
+        assertThatThrownBy(() -> catalogConfigService.parsePage(0, 101))
                 .isInstanceOf(InvalidPaginationException.class)
                 .hasMessageContaining("size");
+    }
+
+    @Test
+    void parseFilter_blankQuery_returnsEmptyFilter() {
+        assertThat(catalogConfigService.parseFilter("   ").isEmpty()).isTrue();
+        assertThat(catalogConfigService.parseFilter(null).isEmpty()).isTrue();
+    }
+
+    @Test
+    void parseFilter_query_isTrimmedAndLowerCased() {
+        CatalogFilter filter = catalogConfigService.parseFilter("  МаШиН ");
+
+        assertThat(filter.query()).isEqualTo("машин");
+        assertThat(filter.isEmpty()).isFalse();
+    }
+
+    @Test
+    void parseFilter_tooLongQuery_throwsInvalidCatalogOptionException() {
+        String query = "x".repeat(CatalogConfigService.MAX_QUERY_LENGTH + 1);
+
+        assertThatThrownBy(() -> catalogConfigService.parseFilter(query))
+                .isInstanceOf(InvalidCatalogOptionException.class)
+                .hasMessageContaining("'q'");
     }
 
     private static RemapAssortmentRow row(String group, String priceType) {
