@@ -7,7 +7,7 @@ import java.util.List;
  *
  * @param positions the requested positions with product ID and quantity
  */
-public record AvailabilityRequest(List<Position> positions) {
+public record AvailabilityCheckRequest(List<Position> positions) {
 
     /**
      * A single requested position.
