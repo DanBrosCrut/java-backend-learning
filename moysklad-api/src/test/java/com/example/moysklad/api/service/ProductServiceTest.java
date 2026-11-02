@@ -6,6 +6,7 @@ import com.example.moysklad.api.client.dto.RemapAssortmentRow;
 import com.example.moysklad.api.client.dto.RemapPriceType;
 import com.example.moysklad.api.client.dto.RemapSalePrice;
 import com.example.moysklad.api.dto.CatalogField;
+import com.example.moysklad.api.dto.CatalogFilter;
 import com.example.moysklad.api.dto.CatalogOptions;
 import com.example.moysklad.api.dto.PageOptions;
 import com.example.moysklad.api.dto.PagedResponse;
@@ -28,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests for {@link ProductService} covering stock merging, showcase options and pagination.
+ * Tests for {@link ProductService} covering stock merging and showcase options.
  */
 @ExtendWith(MockitoExtension.class)
 class ProductServiceTest {
@@ -167,13 +168,52 @@ class ProductServiceTest {
     }
 
     @Test
-    void getProducts_secondPage_returnsRemainingItemsAndTotalCount() {
+    void getProducts_queryMatchesNameIgnoringCase() {
         givenAssortment(
                 product(PRODUCT_ID, "Widget", "ART-1", GROUPS, "100000"),
                 product(SECOND_PRODUCT_ID, "Gadget", "ART-2", GROUPS, "250000"));
 
         PagedResponse<ProductView> page = productService.getProducts(
-                CatalogOptions.defaults(), new PageOptions(1, 1));
+                CatalogOptions.defaults(), new CatalogFilter(" wid "), FIRST_PAGE);
+
+        assertThat(page.items()).singleElement()
+                .extracting(ProductView::id)
+                .isEqualTo(PRODUCT_ID);
+        assertThat(page.total()).isEqualTo(1);
+    }
+
+    @Test
+    void getProducts_queryMatchesArticle() {
+        givenAssortment(
+                product(PRODUCT_ID, "Widget", "ART-1", GROUPS, "100000"),
+                product(SECOND_PRODUCT_ID, "Gadget", "ART-2", GROUPS, "250000"));
+
+        PagedResponse<ProductView> page = productService.getProducts(
+                CatalogOptions.defaults(), new CatalogFilter("art-2"), FIRST_PAGE);
+
+        assertThat(page.items()).singleElement()
+                .extracting(ProductView::id)
+                .isEqualTo(SECOND_PRODUCT_ID);
+    }
+
+    @Test
+    void getProducts_queryWithoutMatches_returnsEmptyPage() {
+        givenAssortment(product(PRODUCT_ID, "Widget", "ART-1", GROUPS, "100000"));
+
+        PagedResponse<ProductView> page = productService.getProducts(
+                CatalogOptions.defaults(), new CatalogFilter("nothing"), FIRST_PAGE);
+
+        assertThat(page.items()).isEmpty();
+        assertThat(page.total()).isZero();
+    }
+
+    @Test
+    void getProducts_secondPage_returnsRemainingItemsAndTotalCount() {        givenAssortment(
+                product(PRODUCT_ID, "Widget", "ART-1", GROUPS, "100000"),
+                product(SECOND_PRODUCT_ID, "Gadget", "ART-2", GROUPS, "250000"));
+
+        PagedResponse<ProductView> page = productService.getProducts(
+                CatalogOptions.defaults(), CatalogFilter.none(), new PageOptions(1, 1));
 
         assertThat(page.items()).singleElement()
                 .extracting(ProductView::id)
@@ -188,14 +228,14 @@ class ProductServiceTest {
         givenAssortment(product(PRODUCT_ID, "Widget", "ART-1", GROUPS, "100000"));
 
         PagedResponse<ProductView> page = productService.getProducts(
-                CatalogOptions.defaults(), new PageOptions(5, 20));
+                CatalogOptions.defaults(), CatalogFilter.none(), new PageOptions(5, 20));
 
         assertThat(page.items()).isEmpty();
         assertThat(page.total()).isEqualTo(1);
     }
 
     private List<ProductView> getProducts(CatalogOptions options) {
-        return productService.getProducts(options, FIRST_PAGE).items();
+        return productService.getProducts(options, CatalogFilter.none(), FIRST_PAGE).items();
     }
 
     private void givenAssortment(RemapAssortmentRow... rows) {

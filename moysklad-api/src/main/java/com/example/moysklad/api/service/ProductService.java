@@ -4,6 +4,7 @@ import com.example.moysklad.api.client.MoyskladClient;
 import com.example.moysklad.api.client.dto.RemapAssortmentRow;
 import com.example.moysklad.api.client.dto.RemapPriceType;
 import com.example.moysklad.api.client.dto.RemapSalePrice;
+import com.example.moysklad.api.dto.CatalogFilter;
 import com.example.moysklad.api.dto.CatalogOptions;
 import com.example.moysklad.api.dto.PageOptions;
 import com.example.moysklad.api.dto.PagedResponse;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -49,13 +51,17 @@ public class ProductService {
      * applies the showcase options and maps the result to a single page of product views.
      * Products missing from the stock report get a stock of zero.
      *
-     * @param options     the catalog display options; {@code null} means defaults
+     * @param options the catalog display options; {@code null} means defaults
+     * @param filter the free-text filter matched against name and article
      * @param pageOptions the pagination parameters
-     * @return one page of products matching the options, with the total number of matches
+     * @return one page of products matching the options and filter, with the total number of matches
      * @throws InvalidCatalogOptionException when the requested price type does not exist in the assortment
      */
-    public PagedResponse<ProductView> getProducts(CatalogOptions options, PageOptions pageOptions) {
+    public PagedResponse<ProductView> getProducts(CatalogOptions options,
+                                                  CatalogFilter filter,
+                                                  PageOptions pageOptions) {
         CatalogOptions effective = Optional.ofNullable(options).orElseGet(CatalogOptions::defaults);
+        CatalogFilter effectiveFilter = Optional.ofNullable(filter).orElseGet(CatalogFilter::none);
         Map<String, BigDecimal> stocks = stockReportMapper.toStockMap(moyskladClient.getStockReport());
         List<RemapAssortmentRow> rows = Optional.ofNullable(moyskladClient.getAssortment().rows())
                 .orElse(List.of());
@@ -63,11 +69,24 @@ public class ProductService {
 
         List<ProductView> products = rows.stream()
                 .filter(row -> effective.groups().isEmpty() || effective.groups().contains(row.pathName()))
+                .filter(row -> matchesQuery(row, effectiveFilter))
                 .filter(row -> !effective.inStockOnly() || stockOf(row, stocks).compareTo(BigDecimal.ZERO) > 0)
                 .map(row -> productMapper.toView(row, stocks.get(row.id()), effective))
                 .toList();
 
         return PagedResponse.of(products, pageOptions.page(), pageOptions.size());
+    }
+
+    private static boolean matchesQuery(RemapAssortmentRow row, CatalogFilter filter) {
+        if (filter.isEmpty()) {
+            return true;
+        }
+        return containsIgnoreCase(row.name(), filter.query())
+                || containsIgnoreCase(row.article(), filter.query());
+    }
+
+    private static boolean containsIgnoreCase(String value, String lowerCaseQuery) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(lowerCaseQuery);
     }
 
     private static BigDecimal stockOf(RemapAssortmentRow row, Map<String, BigDecimal> stocks) {

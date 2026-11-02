@@ -6,6 +6,7 @@ import com.example.moysklad.api.client.dto.RemapPriceType;
 import com.example.moysklad.api.client.dto.RemapSalePrice;
 import com.example.moysklad.api.dto.CatalogConfigView;
 import com.example.moysklad.api.dto.CatalogField;
+import com.example.moysklad.api.dto.CatalogFilter;
 import com.example.moysklad.api.dto.CatalogOptions;
 import com.example.moysklad.api.dto.PageOptions;
 import com.example.moysklad.api.exception.InvalidCatalogOptionException;
@@ -32,6 +33,11 @@ public class CatalogConfigService {
      * Upper bound of the {@code size} parameter, protecting the API from oversized responses.
      */
     public static final int MAX_PAGE_SIZE = 100;
+
+    /**
+     * Upper bound of the free-text filter, protecting the API from oversized queries.
+     */
+    public static final int MAX_QUERY_LENGTH = 100;
 
     private final MoyskladClient moyskladClient;
 
@@ -75,6 +81,22 @@ public class CatalogConfigService {
                     "Parameter 'size' must be between 1 and " + MAX_PAGE_SIZE);
         }
         return new PageOptions(page, size);
+    }
+
+    /**
+     * Validates the free-text catalog filter.
+     *
+     * @param query the raw {@code q} query parameter, may be {@code null}
+     * @return the normalized filter
+     * @throws InvalidCatalogOptionException when the query is longer than {@value #MAX_QUERY_LENGTH} characters
+     */
+    public CatalogFilter parseFilter(String query) {
+        String trimmed = query == null ? "" : query.trim();
+        if (trimmed.length() > MAX_QUERY_LENGTH) {
+            throw new InvalidCatalogOptionException(
+                    "Parameter 'q' must not be longer than " + MAX_QUERY_LENGTH + " characters");
+        }
+        return new CatalogFilter(trimmed);
     }
 
     /**
