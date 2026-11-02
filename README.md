@@ -114,6 +114,8 @@ java -jar target/moysklad-api-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev
 
 ## 🔌 API
 
+Базовый URL: `http://localhost:8080`.
+
 ### GET /health
 
 Проверка живости приложения.
@@ -139,7 +141,7 @@ Query-параметры (все необязательные):
 | `sortBy` | порядок МойСклад | Поле сортировки: `name`, `article`, `group`, `price`, `stock` |
 | `order` | `asc` | Направление сортировки: `asc` или `desc` |
 | `page` | `0` | Номер страницы (с нуля) |
-| `size` | `20` | Размер страницы, от 1 до 100 |
+| `size` | `20` | Размер страницы, от 1 до 100 
 
 Примеры:
 
