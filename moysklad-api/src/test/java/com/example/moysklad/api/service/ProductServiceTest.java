@@ -11,6 +11,8 @@ import com.example.moysklad.api.dto.CatalogOptions;
 import com.example.moysklad.api.dto.PageOptions;
 import com.example.moysklad.api.dto.PagedResponse;
 import com.example.moysklad.api.dto.ProductView;
+import com.example.moysklad.api.dto.SortOptions;
+import com.example.moysklad.api.dto.SortOrder;
 import com.example.moysklad.api.exception.InvalidCatalogOptionException;
 import com.example.moysklad.api.mapper.ProductMapper;
 import com.example.moysklad.api.mapper.StockReportMapper;
@@ -40,6 +42,7 @@ class ProductServiceTest {
     private static final String WHOLESALE_PRICE = "Оптовая цена";
     private static final String GROUPS = "Товары";
     private static final PageOptions FIRST_PAGE = new PageOptions(0, 20);
+    private static final SortOptions NATURAL_SORT = SortOptions.natural();
 
     private static final String STOCK_REPORT_JSON = """
             {
@@ -174,7 +177,7 @@ class ProductServiceTest {
                 product(SECOND_PRODUCT_ID, "Gadget", "ART-2", GROUPS, "250000"));
 
         PagedResponse<ProductView> page = productService.getProducts(
-                CatalogOptions.defaults(), new CatalogFilter(" wid "), FIRST_PAGE);
+                CatalogOptions.defaults(), new CatalogFilter(" wid "), NATURAL_SORT, FIRST_PAGE);
 
         assertThat(page.items()).singleElement()
                 .extracting(ProductView::id)
@@ -189,7 +192,7 @@ class ProductServiceTest {
                 product(SECOND_PRODUCT_ID, "Gadget", "ART-2", GROUPS, "250000"));
 
         PagedResponse<ProductView> page = productService.getProducts(
-                CatalogOptions.defaults(), new CatalogFilter("art-2"), FIRST_PAGE);
+                CatalogOptions.defaults(), new CatalogFilter("art-2"), NATURAL_SORT, FIRST_PAGE);
 
         assertThat(page.items()).singleElement()
                 .extracting(ProductView::id)
@@ -201,7 +204,7 @@ class ProductServiceTest {
         givenAssortment(product(PRODUCT_ID, "Widget", "ART-1", GROUPS, "100000"));
 
         PagedResponse<ProductView> page = productService.getProducts(
-                CatalogOptions.defaults(), new CatalogFilter("nothing"), FIRST_PAGE);
+                CatalogOptions.defaults(), new CatalogFilter("nothing"), NATURAL_SORT, FIRST_PAGE);
 
         assertThat(page.items()).isEmpty();
         assertThat(page.total()).isZero();
@@ -213,7 +216,7 @@ class ProductServiceTest {
                 product(SECOND_PRODUCT_ID, "Gadget", "ART-2", GROUPS, "250000"));
 
         PagedResponse<ProductView> page = productService.getProducts(
-                CatalogOptions.defaults(), CatalogFilter.none(), new PageOptions(1, 1));
+                CatalogOptions.defaults(), CatalogFilter.none(), NATURAL_SORT, new PageOptions(1, 1));
 
         assertThat(page.items()).singleElement()
                 .extracting(ProductView::id)
@@ -228,14 +231,89 @@ class ProductServiceTest {
         givenAssortment(product(PRODUCT_ID, "Widget", "ART-1", GROUPS, "100000"));
 
         PagedResponse<ProductView> page = productService.getProducts(
-                CatalogOptions.defaults(), CatalogFilter.none(), new PageOptions(5, 20));
+                CatalogOptions.defaults(), CatalogFilter.none(), NATURAL_SORT, new PageOptions(5, 20));
 
         assertThat(page.items()).isEmpty();
         assertThat(page.total()).isEqualTo(1);
     }
 
+    @Test
+    void getProducts_sortByPriceDescending_returnsMostExpensiveFirst() {
+        givenAssortment(
+                product(PRODUCT_ID, "Widget", "ART-1", GROUPS, "100000"),
+                product(SECOND_PRODUCT_ID, "Gadget", "ART-2", GROUPS, "250000"));
+
+        PagedResponse<ProductView> page = sortBy(CatalogField.PRICE, SortOrder.DESC, FIRST_PAGE);
+
+        assertThat(page.items())
+                .extracting(ProductView::id)
+                .containsExactly(SECOND_PRODUCT_ID, PRODUCT_ID);
+    }
+
+    @Test
+    void getProducts_sortByNameAscending_ignoresCase() {
+        givenAssortment(
+                product(PRODUCT_ID, "widget", "ART-1", GROUPS, "100000"),
+                product(SECOND_PRODUCT_ID, "Gadget", "ART-2", GROUPS, "250000"));
+
+        PagedResponse<ProductView> page = sortBy(CatalogField.NAME, SortOrder.ASC, FIRST_PAGE);
+
+        assertThat(page.items())
+                .extracting(ProductView::name)
+                .containsExactly("Gadget", "widget");
+    }
+
+    @Test
+    void getProducts_sortByStockAscending_returnsLowStockFirst() {
+        givenAssortment(
+                product(PRODUCT_ID, "Widget", "ART-1", GROUPS, "100000"),
+                product(SECOND_PRODUCT_ID, "Gadget", "ART-2", GROUPS, "250000"));
+
+        PagedResponse<ProductView> page = sortBy(CatalogField.STOCK, SortOrder.ASC, FIRST_PAGE);
+
+        assertThat(page.items())
+                .extracting(ProductView::id)
+                .containsExactly(SECOND_PRODUCT_ID, PRODUCT_ID);
+    }
+
+    @Test
+    void getProducts_sortBeforePagination_pagesTheSortedResult() {
+        givenAssortment(
+                product(PRODUCT_ID, "Widget", "ART-1", GROUPS, "100000"),
+                product(SECOND_PRODUCT_ID, "Gadget", "ART-2", GROUPS, "250000"));
+
+        PagedResponse<ProductView> page = sortBy(CatalogField.PRICE, SortOrder.DESC, new PageOptions(0, 1));
+
+        assertThat(page.items()).singleElement()
+                .extracting(ProductView::id)
+                .isEqualTo(SECOND_PRODUCT_ID);
+        assertThat(page.total()).isEqualTo(2);
+    }
+
+    @Test
+    void getProducts_sortByFieldOmittedFromFields_keepsAssortmentOrder() {
+        givenAssortment(
+                product(PRODUCT_ID, "Widget", "ART-1", GROUPS, "100000"),
+                product(SECOND_PRODUCT_ID, "Gadget", "ART-2", GROUPS, "250000"));
+
+        PagedResponse<ProductView> page = productService.getProducts(
+                new CatalogOptions(null, List.of(), false, List.of(CatalogField.NAME)),
+                CatalogFilter.none(),
+                new SortOptions(CatalogField.PRICE, SortOrder.ASC),
+                FIRST_PAGE);
+
+        assertThat(page.items())
+                .extracting(ProductView::id)
+                .containsExactly(PRODUCT_ID, SECOND_PRODUCT_ID);
+    }
+
+    private PagedResponse<ProductView> sortBy(CatalogField field, SortOrder order, PageOptions pageOptions) {
+        return productService.getProducts(
+                CatalogOptions.defaults(), CatalogFilter.none(), new SortOptions(field, order), pageOptions);
+    }
+
     private List<ProductView> getProducts(CatalogOptions options) {
-        return productService.getProducts(options, CatalogFilter.none(), FIRST_PAGE).items();
+        return productService.getProducts(options, CatalogFilter.none(), NATURAL_SORT, FIRST_PAGE).items();
     }
 
     private void givenAssortment(RemapAssortmentRow... rows) {

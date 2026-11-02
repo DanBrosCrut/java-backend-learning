@@ -6,6 +6,7 @@ import com.example.moysklad.api.dto.CatalogOptions;
 import com.example.moysklad.api.dto.PageOptions;
 import com.example.moysklad.api.dto.PagedResponse;
 import com.example.moysklad.api.dto.ProductView;
+import com.example.moysklad.api.dto.SortOptions;
 import com.example.moysklad.api.service.CatalogConfigService;
 import com.example.moysklad.api.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -46,6 +47,8 @@ public class ProductController {
      * @param q           case-insensitive text matched against product name and article
      * @param fields      comma-separated fields to include; empty means all fields
      * @param inStockOnly whether to hide products with zero stock
+     * @param sortBy      the field to sort by; empty keeps the MoySklad order
+     * @param order       the sort direction: asc or desc
      * @param page        the zero-based page index
      * @param size        the page size (1..100)
      * @return one configured page of products with the total number of matches
@@ -64,14 +67,19 @@ public class ProductController {
             @RequestParam(required = false) String fields,
             @Parameter(description = "Hide products with zero stock", example = "false")
             @RequestParam(defaultValue = "false") boolean inStockOnly,
+            @Parameter(description = "Field to sort by: name, article, group, price, stock. Empty keeps the MoySklad order", example = "price")
+            @RequestParam(required = false) String sortBy,
+            @Parameter(description = "Sort direction: asc or desc", example = "asc")
+            @RequestParam(defaultValue = "asc") String order,
             @Parameter(description = "Zero-based page index", example = "0")
             @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size, from 1 to 100", example = "20")
             @RequestParam(defaultValue = "20") int size) {
         CatalogOptions options = catalogConfigService.parse(priceType, groups, fields, inStockOnly);
         CatalogFilter filter = catalogConfigService.parseFilter(q);
+        SortOptions sort = catalogConfigService.parseSort(sortBy, order);
         PageOptions pageOptions = catalogConfigService.parsePage(page, size);
-        return productService.getProducts(options, filter, pageOptions);
+        return productService.getProducts(options, filter, sort, pageOptions);
     }
 
     /**

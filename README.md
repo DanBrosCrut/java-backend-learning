@@ -82,7 +82,80 @@ java -jar target/moysklad-api-0.0.1-SNAPSHOT.jar
 
 ## 🔌 API
 
+Базовый URL: `http://localhost:8080`.
+
 ### GET /health
+
+Проверка живости приложения.
+
+```bash
+curl "http://localhost:8080/health"
+```
+
+### GET /api/products
+
+Каталог товаров из МойСклад с остатками, отфильтрованный и отсортированный под витрину.
+Ответ — страница `{items, total, page, size}`, где `total` — число товаров после фильтрации (до пагинации).
+
+Query-параметры (все необязательные):
+
+| Параметр | Значение по умолчанию | Описание |
+|---|---|---|
+| `priceType` | первая цена продажи | Тип цены, например `Цена продажи` |
+| `groups` | все группы | Список групп через запятую, например `Товары,Услуги` |
+| `q` | — | Поиск без учёта регистра по названию и артикулу (до 100 символов) |
+| `fields` | все поля | Какие поля вернуть: `name,article,group,price,stock` |
+| `inStockOnly` | `false` | Скрыть товары с нулевым остатком |
+| `sortBy` | порядок МойСклад | Поле сортировки: `name`, `article`, `group`, `price`, `stock` |
+| `order` | `asc` | Направление сортировки: `asc` или `desc` |
+| `page` | `0` | Номер страницы (с нуля) |
+| `size` | `20` | Размер страницы, от 1 до 100 |
+
+Примеры:
+
+```bash
+# вся первая страница
+curl "http://localhost:8080/api/products"
+
+# сортировка по цене: сначала самые дорогие
+curl "http://localhost:8080/api/products?sortBy=price&order=desc"
+
+# сортировка по названию + только нужные поля
+curl "http://localhost:8080/api/products?sortBy=name&order=asc&fields=name,price"
+
+# поиск по названию/артикулу вместе с фильтрами и пагинацией
+curl "http://localhost:8080/api/products?q=машин&groups=Товары&inStockOnly=true&sortBy=stock&order=asc&page=0&size=10"
+
+# страница за пределами данных: пустой items, но реальный total
+curl "http://localhost:8080/api/products?page=99&size=20"
+```
+
+Особенности:
+
+- `sortBy` применяется к значениям, которые попадают в ответ: если поле исключено через `fields`, сортировка по нему не меняет порядок.
+- Сортировка выполняется до пагинации, поэтому `total` и содержимое страниц всегда согласованы.
+- Некорректные `priceType`, `fields`, `q`, `sortBy`, `order` → `400 INVALID_CATALOG_OPTION`, некорректные `page`/`size` → `400 INVALID_PAGINATION`.
+
+### GET /api/products/config
+
+Возвращает доступные для аккаунта типы цен и группы товаров, список поддерживаемых полей и значения по умолчанию.
+
+```bash
+curl "http://localhost:8080/api/products/config"
+```
+
+### Формат ошибок
+
+Все ошибки возвращаются в едином виде:
+
+```json
+{
+  "code": "INVALID_CATALOG_OPTION",
+  "message": "Unknown sort field 'unknown'. Allowed fields: name,article,group,price,stock"
+}
+```
+
+Коды: `INVALID_CATALOG_OPTION`, `INVALID_PAGINATION` (400), `MOYSKLAD_ERROR` (502), `INTERNAL_ERROR` (500).
 
 ## Конфигурация
 

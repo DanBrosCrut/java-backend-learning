@@ -9,6 +9,8 @@ import com.example.moysklad.api.dto.CatalogField;
 import com.example.moysklad.api.dto.CatalogFilter;
 import com.example.moysklad.api.dto.CatalogOptions;
 import com.example.moysklad.api.dto.PageOptions;
+import com.example.moysklad.api.dto.SortOptions;
+import com.example.moysklad.api.dto.SortOrder;
 import com.example.moysklad.api.exception.InvalidCatalogOptionException;
 import com.example.moysklad.api.exception.InvalidPaginationException;
 import org.springframework.stereotype.Service;
@@ -100,6 +102,28 @@ public class CatalogConfigService {
     }
 
     /**
+     * Validates the sorting parameters of a catalog request.
+     * Sorting is optional: a blank {@code sortBy} keeps the natural MoySklad assortment order,
+     * and a blank {@code order} means ascending.
+     *
+     * @param sortBy the field to sort by, may be {@code null}
+     * @param order  the sort direction, may be {@code null}
+     * @return the validated sorting parameters
+     * @throws InvalidCatalogOptionException when the field or the direction is unknown
+     */
+    public SortOptions parseSort(String sortBy, String order) {
+        SortOrder direction = parseOrder(order);
+        if (sortBy == null || sortBy.isBlank()) {
+            return new SortOptions(null, direction);
+        }
+        String trimmed = sortBy.trim();
+        CatalogField field = CatalogField.fromQueryName(trimmed)
+                .orElseThrow(() -> new InvalidCatalogOptionException(
+                        "Unknown sort field '" + trimmed + "'. Allowed fields: " + CatalogField.allQueryNames()));
+        return new SortOptions(field, direction);
+    }
+
+    /**
      * Describes the showcase options available for the current MoySklad account:
      * price types and product groups present in the assortment, supported fields and defaults.
      *
@@ -137,6 +161,16 @@ public class CatalogConfigService {
                 CatalogOptions.ALL_FIELDS);
 
         return new CatalogConfigView(priceTypes, groups, fields, defaults);
+    }
+
+    private static SortOrder parseOrder(String order) {
+        if (order == null || order.isBlank()) {
+            return SortOrder.ASC;
+        }
+        String trimmed = order.trim();
+        return SortOrder.fromValue(trimmed)
+                .orElseThrow(() -> new InvalidCatalogOptionException(
+                        "Unknown sort order '" + trimmed + "'. Allowed values: asc,desc"));
     }
 
     private static List<CatalogField> parseFields(String fields) {
