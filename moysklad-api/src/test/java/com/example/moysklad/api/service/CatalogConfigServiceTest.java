@@ -8,7 +8,9 @@ import com.example.moysklad.api.client.dto.RemapSalePrice;
 import com.example.moysklad.api.dto.CatalogConfigView;
 import com.example.moysklad.api.dto.CatalogField;
 import com.example.moysklad.api.dto.CatalogOptions;
+import com.example.moysklad.api.dto.PageOptions;
 import com.example.moysklad.api.exception.InvalidCatalogOptionException;
+import com.example.moysklad.api.exception.InvalidPaginationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests for {@link CatalogConfigService}: query parsing, validation and option discovery.
+ * Tests for {@link CatalogConfigService}: query parsing, pagination validation and option discovery.
  */
 @ExtendWith(MockitoExtension.class)
 class CatalogConfigServiceTest {
@@ -80,6 +82,31 @@ class CatalogConfigServiceTest {
         assertThat(config.defaults()).isNotNull();
         assertThat(config.defaults().fields()).containsExactlyElementsOf(CatalogOptions.ALL_FIELDS);
         assertThat(config.defaults().groups()).containsExactly("Товары", "Услуги");
+    }
+
+    @Test
+    void parsePage_validParameters_returnsPageOptions() {
+        PageOptions pageOptions = catalogConfigService.parsePage(2, 50);
+
+        assertThat(pageOptions.page()).isEqualTo(2);
+        assertThat(pageOptions.size()).isEqualTo(50);
+    }
+
+    @Test
+    void parsePage_negativePage_throwsInvalidPaginationException() {
+        assertThatThrownBy(() -> catalogConfigService.parsePage(-1, 20))
+                .isInstanceOf(InvalidPaginationException.class)
+                .hasMessageContaining("page");
+    }
+
+    @Test
+    void parsePage_sizeOutOfRange_throwsInvalidPaginationException() {
+        assertThatThrownBy(() -> catalogConfigService.parsePage(0, 0))
+                .isInstanceOf(InvalidPaginationException.class)
+                .hasMessageContaining("size");
+        assertThatThrownBy(() -> catalogConfigService.parsePage(0, CatalogConfigService.MAX_PAGE_SIZE + 1))
+                .isInstanceOf(InvalidPaginationException.class)
+                .hasMessageContaining("size");
     }
 
     private static RemapAssortmentRow row(String group, String priceType) {

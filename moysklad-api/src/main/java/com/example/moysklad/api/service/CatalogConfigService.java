@@ -7,7 +7,9 @@ import com.example.moysklad.api.client.dto.RemapSalePrice;
 import com.example.moysklad.api.dto.CatalogConfigView;
 import com.example.moysklad.api.dto.CatalogField;
 import com.example.moysklad.api.dto.CatalogOptions;
+import com.example.moysklad.api.dto.PageOptions;
 import com.example.moysklad.api.exception.InvalidCatalogOptionException;
+import com.example.moysklad.api.exception.InvalidPaginationException;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
@@ -20,6 +22,16 @@ import java.util.Optional;
  */
 @Service
 public class CatalogConfigService {
+
+    /**
+     * Page size used when the client does not pass the {@code size} parameter.
+     */
+    public static final int DEFAULT_PAGE_SIZE = 20;
+
+    /**
+     * Upper bound of the {@code size} parameter, protecting the API from oversized responses.
+     */
+    public static final int MAX_PAGE_SIZE = 100;
 
     private final MoyskladClient moyskladClient;
 
@@ -44,6 +56,25 @@ public class CatalogConfigService {
      */
     public CatalogOptions parse(String priceType, String groups, String fields, boolean inStockOnly) {
         return new CatalogOptions(priceType, split(groups), inStockOnly, parseFields(fields));
+    }
+
+    /**
+     * Validates the pagination parameters of a catalog request.
+     *
+     * @param page the zero-based page index
+     * @param size the requested page size
+     * @return the validated pagination parameters
+     * @throws InvalidPaginationException when the page is negative or the size is out of the allowed range
+     */
+    public PageOptions parsePage(int page, int size) {
+        if (page < 0) {
+            throw new InvalidPaginationException("Parameter 'page' must be zero or greater");
+        }
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new InvalidPaginationException(
+                    "Parameter 'size' must be between 1 and " + MAX_PAGE_SIZE);
+        }
+        return new PageOptions(page, size);
     }
 
     /**

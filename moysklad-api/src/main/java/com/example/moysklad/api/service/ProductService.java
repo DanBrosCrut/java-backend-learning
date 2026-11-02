@@ -5,6 +5,8 @@ import com.example.moysklad.api.client.dto.RemapAssortmentRow;
 import com.example.moysklad.api.client.dto.RemapPriceType;
 import com.example.moysklad.api.client.dto.RemapSalePrice;
 import com.example.moysklad.api.dto.CatalogOptions;
+import com.example.moysklad.api.dto.PageOptions;
+import com.example.moysklad.api.dto.PagedResponse;
 import com.example.moysklad.api.dto.ProductView;
 import com.example.moysklad.api.exception.InvalidCatalogOptionException;
 import com.example.moysklad.api.mapper.ProductMapper;
@@ -44,25 +46,28 @@ public class ProductService {
 
     /**
      * Fetches the assortment and the stock report, merges them by product ID,
-     * applies the showcase options and maps the result to product views.
+     * applies the showcase options and maps the result to a single page of product views.
      * Products missing from the stock report get a stock of zero.
      *
-     * @param options the catalog display options; {@code null} means defaults
-     * @return the products matching the options, with current stock
+     * @param options     the catalog display options; {@code null} means defaults
+     * @param pageOptions the pagination parameters
+     * @return one page of products matching the options, with the total number of matches
      * @throws InvalidCatalogOptionException when the requested price type does not exist in the assortment
      */
-    public List<ProductView> getProducts(CatalogOptions options) {
+    public PagedResponse<ProductView> getProducts(CatalogOptions options, PageOptions pageOptions) {
         CatalogOptions effective = Optional.ofNullable(options).orElseGet(CatalogOptions::defaults);
         Map<String, BigDecimal> stocks = stockReportMapper.toStockMap(moyskladClient.getStockReport());
         List<RemapAssortmentRow> rows = Optional.ofNullable(moyskladClient.getAssortment().rows())
                 .orElse(List.of());
         validatePriceType(rows, effective);
 
-        return rows.stream()
+        List<ProductView> products = rows.stream()
                 .filter(row -> effective.groups().isEmpty() || effective.groups().contains(row.pathName()))
                 .filter(row -> !effective.inStockOnly() || stockOf(row, stocks).compareTo(BigDecimal.ZERO) > 0)
                 .map(row -> productMapper.toView(row, stocks.get(row.id()), effective))
                 .toList();
+
+        return PagedResponse.of(products, pageOptions.page(), pageOptions.size());
     }
 
     private static BigDecimal stockOf(RemapAssortmentRow row, Map<String, BigDecimal> stocks) {

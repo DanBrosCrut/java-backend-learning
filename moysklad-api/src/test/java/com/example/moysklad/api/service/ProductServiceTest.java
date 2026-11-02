@@ -7,6 +7,8 @@ import com.example.moysklad.api.client.dto.RemapPriceType;
 import com.example.moysklad.api.client.dto.RemapSalePrice;
 import com.example.moysklad.api.dto.CatalogField;
 import com.example.moysklad.api.dto.CatalogOptions;
+import com.example.moysklad.api.dto.PageOptions;
+import com.example.moysklad.api.dto.PagedResponse;
 import com.example.moysklad.api.dto.ProductView;
 import com.example.moysklad.api.exception.InvalidCatalogOptionException;
 import com.example.moysklad.api.mapper.ProductMapper;
@@ -26,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests for {@link ProductService} covering stock merging and showcase options.
+ * Tests for {@link ProductService} covering stock merging, showcase options and pagination.
  */
 @ExtendWith(MockitoExtension.class)
 class ProductServiceTest {
@@ -36,6 +38,7 @@ class ProductServiceTest {
     private static final String RETAIL_PRICE = "Цена продажи";
     private static final String WHOLESALE_PRICE = "Оптовая цена";
     private static final String GROUPS = "Товары";
+    private static final PageOptions FIRST_PAGE = new PageOptions(0, 20);
 
     private static final String STOCK_REPORT_JSON = """
             {
@@ -163,8 +166,36 @@ class ProductServiceTest {
         assertThat(product.stock()).isNull();
     }
 
+    @Test
+    void getProducts_secondPage_returnsRemainingItemsAndTotalCount() {
+        givenAssortment(
+                product(PRODUCT_ID, "Widget", "ART-1", GROUPS, "100000"),
+                product(SECOND_PRODUCT_ID, "Gadget", "ART-2", GROUPS, "250000"));
+
+        PagedResponse<ProductView> page = productService.getProducts(
+                CatalogOptions.defaults(), new PageOptions(1, 1));
+
+        assertThat(page.items()).singleElement()
+                .extracting(ProductView::id)
+                .isEqualTo(SECOND_PRODUCT_ID);
+        assertThat(page.total()).isEqualTo(2);
+        assertThat(page.page()).isEqualTo(1);
+        assertThat(page.size()).isEqualTo(1);
+    }
+
+    @Test
+    void getProducts_pageBeyondEnd_returnsEmptyItemsWithTotal() {
+        givenAssortment(product(PRODUCT_ID, "Widget", "ART-1", GROUPS, "100000"));
+
+        PagedResponse<ProductView> page = productService.getProducts(
+                CatalogOptions.defaults(), new PageOptions(5, 20));
+
+        assertThat(page.items()).isEmpty();
+        assertThat(page.total()).isEqualTo(1);
+    }
+
     private List<ProductView> getProducts(CatalogOptions options) {
-        return productService.getProducts(options);
+        return productService.getProducts(options, FIRST_PAGE).items();
     }
 
     private void givenAssortment(RemapAssortmentRow... rows) {

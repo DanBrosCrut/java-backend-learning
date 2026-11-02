@@ -2,6 +2,7 @@ package com.example.moysklad.api.controller;
 
 import com.example.moysklad.api.dto.ErrorResponse;
 import com.example.moysklad.api.exception.InvalidCatalogOptionException;
+import com.example.moysklad.api.exception.InvalidPaginationException;
 import com.example.moysklad.api.exception.MoyskladApiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +19,19 @@ import org.springframework.web.client.HttpClientErrorException;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    /**
+     * Handles invalid pagination parameters.
+     *
+     * @param ex the exception describing the invalid parameter
+     * @return a 400 response with a consistent error body
+     */
+    @ExceptionHandler(InvalidPaginationException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidPaginationException(InvalidPaginationException ex) {
+        log.warn("Invalid pagination: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ErrorResponse("INVALID_PAGINATION", ex.getMessage()));
+    }
 
     /**
      * Handles catalog options that cannot be resolved.
