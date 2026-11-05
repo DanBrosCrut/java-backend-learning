@@ -40,7 +40,7 @@ class CatalogConfigServiceTest {
 
     @BeforeEach
     void setUp() {
-        catalogConfigService = new CatalogConfigService(moyskladClient);
+        catalogConfigService = new CatalogConfigService(new AssortmentCache(moyskladClient));
     }
 
     @Test
@@ -77,7 +77,7 @@ class CatalogConfigServiceTest {
                 row("Товары", "Цена продажи"),
                 row("Услуги", "Оптовая цена"))));
 
-        CatalogConfigView config = catalogConfigService.describe();
+        CatalogConfigView config = catalogConfigService.describe(false).body();
 
         assertThat(config.priceTypes()).containsExactly("Оптовая цена", "Цена продажи");
         assertThat(config.groups()).containsExactly("Товары", "Услуги");
