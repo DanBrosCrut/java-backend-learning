@@ -1,433 +1,185 @@
-# Отчёт по неделе 1 (02.10 – 07.10)
+# Отчёт по проекту: Java Backend Learning
 
-## Agile и Scrum
-**Дата:** 02.10.2026
+**Репозиторий:** https://github.com/DanBrosCrut/java-backend-learning
 
-### Чем Agile отличается от «водопада»
+Учебный backend-сервис на Spring Boot, который читает ассортимент и остатки из МойСклад (Remap 1.2)
+и отдаёт витрину каталога через REST API. Собственной базы данных нет — источником истины остаётся МойСклад.
 
-**Waterfall** — последовательный подход: фазы идут одна за другой (анализ → проектирование → разработка → тестирование → внедрение). Следующая фаза не начинается, пока не закончится предыдущая.
-
-**Agile** — итеративный подход: работа разбита на короткие циклы (спринты), каждый из которых производит работающий инкремент. Требования могут меняться между итерациями, а обратная связь от клиента приходит после каждого спринта.
-
-Главное отличие: в Waterfall клиент видит результат в конце, в Agile — каждую итерацию. Agile лучше подходит, когда требования неясны или могут меняться.
-
-### Зачем Daily и Retrospective
-
-**Daily Scrum (15 минут):** событие для Developers, чтобы инспектировать прогресс к Sprint Goal и адаптировать Sprint Backlog. Это не статус-митинг для начальства, а инструмент самоуправления команды. Daily помогает:
-- Синхронизировать работу
-- Рано выявлять препятствия
-- Принимать быстрые решения
-
-**Sprint Retrospective:** рефлексия в конце Sprint — что прошло хорошо, что нет, какие улучшения внедрить. Цель — повысить качество и эффективность команды. Это не разбор ошибок, а поиск конкретных действий по улучшению процесса.
-
-### Definition of Done
-
-**Definition of Done (DoD)** — формальное описание состояния Increment, когда он соответствует требованиям качества. Это общий чек-лист для всех задач, в отличие от Acceptance Criteria, которые относятся к конкретной фиче.
-
-Если элемент Product Backlog не соответствует DoD — он **не может быть выпущен** и даже представлен на Sprint Review. Вместо этого он возвращается в Product Backlog.
-
-DoD обеспечивает прозрачность: все понимают, что значит «готово». Это «социальный контракт» команды.
+**Стек:** Java 21 LTS (Temurin), Spring Boot 4.1.1 (Web MVC, Validation, Actuator), Maven 3.9.x,
+springdoc-openapi 3.1.1, JUnit 5 + Mockito + AssertJ.
 
 ---
 
-## МойСклад
+## Спринт 1 — Окружение, Agile/Scrum, знакомство с МойСклад API
 
-### 1. Регистрация и учебный центр
+**Цель:** подготовить воспроизводимое рабочее окружение и разобраться в предметной области.
 
-**Дата:** 03.10.2026
-**Аккаунт:** [danya.pavlinov01@mail.ru]
+**Ключевые результаты**
 
-Пройдены вводные уроки Учебного центра МойСклад:
-Просмотрел уроки создания товаров, отгрузки, закупки покупателей
+- **Окружение:** SDKMAN в Git Bash — JDK 21.0.2-tem и Maven 3.9.10; настройка `JAVA_HOME`/`PATH`,
+  VS Code с Extension Pack for Java. Окружение описано в `docs/environment.md`.
+- **Git/GitHub:** создан репозиторий, настроен `.gitignore` (секреты, `target/`, IDE),
+  введён workflow «одна задача = одна ветка = один PR».
+- **Agile/Scrum:** разобраны Waterfall и Agile, роли, Daily Scrum (15 минут), Retrospective,
+  Definition of Done, ведение Product/Sprint Backlog (`docs/agile-scrum.md`).
+- **МойСклад API:** изучен Remap 1.2 (JSON, структура сущностей, справочники, остатки, типы цен),
+  правила формирования URL и авторизации по токену (`docs/moysklad.md`).
+- **Инструменты ИИ:** освоены IRM, MCP и агентные среды (Kilo Code, Cline), принцип human-in-the-loop.
 
-**Ключевые понятия, которые разобрал:**
-- Товар и его карточка
-- Приёмка и себестоимость
-- Остатки на складе
-- Заказ покупателя и резервирование
-- Отгрузка и списание
-
----
-
-### 2. Обзор API (dev.moysklad.ru)
-
-**Прочитано:**
-- «Первые шаги в API» — что нужно знать для начала работы
-- Ограничения JSON API
-- Основные сущности: Товары, Контрагенты, Заказы покупателей, Приёмки
-- Метаданные объектов
-- Вебхуки — механизм для отслеживания изменений в аккаунте — позволяет получать данные об изменениях в реальном времени, вместо периодических запросов.
+**Итог:** окружение собирается с нуля по документации, домен и контракт внешнего API понятны.
 
 ---
 
-### 3. Онлайн-заказ: что это и зачем
+## Спринт 2 — Первый Spring Boot сервис и интеграция с МойСклад
 
-**Где найти:** Решения → Онлайн-заказ
+**Цель:** поднять работающий REST-сервис и получить данные из реального аккаунта МойСклад.
 
-**Что такое Онлайн-заказ:**
-Приложение внутри МойСклад, которое создаёт «витрину» товаров — общедоступную ссылку на каталог. Покупатель открывает ссылку, выбирает товары, оформляет заказ — и этот заказ автоматически попадает в МойСклад как «Заказ покупателя» [citation:3].
+**Ключевые результаты**
 
-**Зачем бизнесу (5–10 тезисов):**
-1. Не нужен отдельный сайт — достаточно ссылки, которую можно разместить где угодно
-2. Заказы автоматически попадают в МойСклад как «Заказ покупателя»
-3. Остатки и цены обновляются автоматически
-4. Можно показывать только товары в наличии
-5. Есть функция «Резервировать заказанные товары» — защита от продажи большего числа, чем есть на складе(удобное ограничение)
-6. Можно создать персональную ссылку для конкретного контрагента с его типом цен
-7. Покупатель указывает имя и телефон — они попадают в комментарий к заказу
-8. 24/7
-9. Удобно на любом устройстве
-10. На бесплатных тарифах доступен не весь функционал
+- **Проект:** Spring Initializr → Spring Boot 4.x, embedded Tomcat, порт 8080;
+  проект переименован в `moysklad-api` с пакетом `com.example.moysklad.api`.
+- **Health-эндпоинт:** `GET /health` → `ok` — минимальный контроль работоспособности.
+- **Интеграция:** `MoyskladClient` на `RestClient` с Bearer-токеном; запрос `GET /entity/assortment`
+  к Remap 1.2, базовый URL вынесен в конфигурацию.
+- **Модель данных:** Remap-DTO в виде records (`RemapAssortmentResponse`, `RemapAssortmentRow`,
+  `RemapSalePrice`, `RemapPriceType`) и маппинг в публичный `ProductView`;
+  цена переводится из минорных единиц в `BigDecimal` с масштабом 2.
+- **Секреты:** токен только в `.env` (в `.gitignore`) или в переменной окружения `MOYSKLAD_TOKEN`;
+  запрет на логирование и коммит токена закреплён в `AGENTS.md`.
+- **MCP → GitHub:** чтение Issues и создание PR через MCP; при ошибке авторизации MCP
+  используется REST-фолбэк через git credential helper.
+- **Тесты:** JUnit 5 + Mockito на сервисный слой, внешний API замокан.
 
-(Если обобщить простыми словами - удобно, автоматически, оптимизированно)
-
-**Как настроить ссылку (изучил):**
-- Перейти в Решения → Онлайн-заказ → Ссылки на каталоги товаров
-- Нажать «+Общедоступная ссылка»
-- Указать: название ссылки, юрлицо, группы товаров, склады, тип цен
-- Отметить «Резервировать заказанные товары» (рекомендуется)
-- Нажать «Создать»
-(https://danyapavlinov01.moysklad.shop/catalog) - готовая ссылка
-
-**Отличие от «Заказа покупателя» в интерфейсе:**
-
-| Онлайн-заказ | Заказ покупателя (вручную) |
-|--------------|---------------------------|
-| Создаётся покупателем через ссылку | Создаётся менеджером вручную |
-| Автоматически попадает в систему | Вводится вручную |
-| Покупатель сам видит остатки и цены | Менеджер подбирает товары |
-| Работает без участия менеджера | Зависит от менеджера |
-| Контрагент = «Розничный покупатель»| Контрагент выбирается вручную |
-
-(Если обобщить простыми словами - удобно, автоматически, оптимизированно)
+**Итог:** `GET /api/products` возвращает каталог из живого аккаунта МойСклад.
 
 ---
 
-### 4. Сквозной сценарий: товар → приёмка → заказ → отгрузка
+## Спринт 3 — Остатки, проверка доступности, наблюдаемость
 
-**Шаг 1: Создание товара**
-- Раздел: Товары → Товары
-- Создан товар: [название, артикул, цена]
+**Цель:** обогатить каталог остатками, добавить сценарий проверки наличия и эксплуатационные инструменты.
 
-**Шаг 2: Приёмка**
-- Раздел: Закупки → Приёмки
-- Создан документ приёмки: [номер документа]
-- Указано: организация, контрагент (поставщик), склад, позиции с ценами
-- **Результат:** товар появился на складе, сформирована себестоимость, появился долг перед поставщиком
+**Ключевые результаты**
 
-**Шаг 3: Заказ покупателя**
-- Раздел: Продажи → Заказы покупателей
-- Создан заказ: [номер документа]
-- Указано: контрагент (покупатель), склад, позиции [citation:6]
-- **Важно:** заказ не влияет на остатки, только резервирует товар [citation:6]
+- **Остатки:** запрос отчёта `GET /report/stock/all`, разбор в `StockReportMapper.toStockMap`,
+  слияние с ассортиментом по идентификатору товара; отсутствие строки в отчёте трактуется как остаток 0.
+- **Проверка доступности:** `POST /api/availability` и `AvailabilityService` — проверка списка позиций,
+  ответ `{available, missing[]}` с расшифровкой нехватки (`requested` / `available`).
+- **Документация API:** springdoc-openapi, `@Tag`/`@Operation`/`@Schema`, Swagger UI на `/swagger-ui/index.html`.
+- **Наблюдаемость:** Spring Boot Actuator (`/actuator/health`, `/actuator/info`);
+  `CorrelationIdFilter` с MDC — идентификатор запроса печатается в каждой строке лога.
+- **Обработка ошибок:** `@RestControllerAdvice` + единый `ErrorResponse{code, message}`;
+  коды `INVALID_CATALOG_OPTION`, `MOYSKLAD_ERROR`, `MOYSKLAD_UNAUTHORIZED`, `MOYSKLAD_FORBIDDEN`,
+  статусы 400/500/502, без утечки стектрейсов клиенту.
+- **Тесты:** happy path и граничные случаи (пустой список, отсутствующий товар, недостаток остатка).
 
-**Шаг 4: Отгрузка**
-- Из Заказа покупателя создан документ Отгрузка
-- **Результат:** товар списан со склада, долг покупателя закрыт
+**Итог:** сервис покрывает сценарий «витрина + проверка наличия» и пригоден для эксплуатации.
 
 ---
 
-# Окружение
+## Спринт 4 — Рефакторинг и качество кода
 
-**Дата:** 04.10.2026
+**Цель:** привести кодовую базу к единому стилю и подготовить её к расширению каталога.
 
-## Java
+**Ключевые результаты**
 
-Установлена **Temurin 21.0.10 LTS** (Eclipse Adoptium).
-$ java -version
-openjdk version "21.0.10" 2026-01-20 LTS
-OpenJDK Runtime Environment Temurin-21.0.10+8 (build 21.0.10+8-LTS-217)
-OpenJDK 64-Bit Server VM Temurin-21.0.10+8 (build 21.0.10+8-LTS-217, mixed mode, sharing)
+- **Конфигурация:** переход с `application.properties` на YAML и профили `dev` / `prod`
+  (уровни логирования, отключение Swagger в `prod`).
+- **Слоистость:** `HealthController` перенесён в пакет `controller`; закреплены пакеты
+  `client` / `config` / `controller` / `dto` / `exception` / `mapper` / `service`.
+- **Java 21:** records для DTO, switch-выражения, text blocks; streams вместо циклов,
+  `Optional` вместо ручных проверок на `null`, method references в лямбдах.
+- **Деньги:** только `BigDecimal`, создание из строки, сравнение через `compareTo`,
+  явный `RoundingMode` — без `double`/`float`.
+- **Именование DTO:** speaking names — `...View` для вывода, `...Request`/`...Response` для входа/выхода,
+  `...RemapDto` для внешнего API.
+- **Тесты:** JUnit 5 + Mockito, описательные имена методов, покрытие happy path и edge cases.
+- **Технический долг (зафиксирован и устранён в Спринте 5):** после перевода исходников из UTF-16
+  в UTF-8 остался рассинхрон имён файлов и record-типов (`AvailabilityCheckRequest`,
+  `AvailabilityCheckResponse`, `ProductView`), из-за чего `main` не компилировался.
+  Исправление включено в PR #80 — первый PR стека Sprint 5.
 
-**Способ установки:** SDKMAN (Java 21.0.2-tem — базовая версия в `~/.sdkman/candidates/java/current`).
-**Системная Java** (через PATH Windows): 21.0.10 LTS.
-
-**Важно:** в Git Bash `java -version` может показывать версию от SDKMAN (21.0.2-tem), а в PowerShell — системную (21.0.10). Обе — LTS, разница в минорной версии не критична.
-
----
-
-## Maven
-
-Установлен **Apache Maven 3.9.10** через SDKMAN.
-$ mvn -version
-Apache Maven 3.9.10 (5f519b97e944483d878815739f519b2eade0a91d)
-Maven home: C:\Users\Home.sdkman\candidates\maven\current
-Java version: 21.0.2, vendor: Eclipse Adoptium, runtime: C:\Users\Home.sdkman\candidates\java\current
-Default locale: ru_RU, platform encoding: UTF-8
-OS name: "windows 11", version: "10.0", arch: "amd64", family: "windows"
-
-**Путь к исполняемому файлу:** `C:\Users\Home\.sdkman\candidates\maven\current\bin\mvn.cmd`
+**Итог:** предсказуемая структура пакетов, единый стиль, конфигурация по профилям, зелёные тесты.
 
 ---
 
-## SDKMAN
+## Спринт 5 — Продвинутый каталог витрины
 
-- Установлен в **Git Bash** (MINGW64)
-- Инициализация: `source "$HOME/.sdkman/bin/sdkman-init.sh"`
-- Через SDKMAN установлены: Java 21.0.2-tem, Maven 3.9.10
-- Команды: `sdk list java`, `sdk install <candidate> <version>`, `sdk default <candidate> <version>`
-- **Примечание:** сайт `get.sdkman.io` блокируется в РФ — потребовался VPN при установке.
+**Цель:** превратить простой список товаров в полноценную витрину: настройка отображения,
+поиск, сортировка и постраничная выдача.
 
----
+**Ключевые результаты**
 
-## VS Code
+- **Vision и Backlog (#75, PR #79 — слит):** `docs/vision.md` с полным сквозным сценарием
+  (каталог → наличие → создание заказа → чтение заказа), переписанный `docs/backlog.md`
+  с приоритетами: Sprint 5 — витрина, Sprint 6 — заказы, далее MCP/эксплуатация.
+- **Опции и конфигурация (#76, PR #80):** параметры `priceType`, `groups`, `fields`, `inStockOnly`;
+  эндпоинт `GET /api/products/config` отдаёт доступные типы цен, группы, поддерживаемые поля и значения
+  по умолчанию. Валидация неизвестных опций → `400 INVALID_CATALOG_OPTION`.
+  `ProductView.price` переведён на `BigDecimal`, ненужные поля опускаются (`@JsonInclude(NON_NULL)`).
+- **Пагинация (#39, PR #81):** параметры `page` (с нуля) и `size` (1..100, по умолчанию 20);
+  ответ `{items, total, page, size}`, где `total` считается после применения опций и до нарезки страниц;
+  страница за пределами данных возвращает пустой `items` и реальный `total`.
+  Неверные параметры → `400 INVALID_PAGINATION`.
+- **Фильтрация (#77, PR #82):** параметр `q` — поиск без учёта регистра по названию и артикулу,
+  длина до 100 символов; комбинируется с остальными опциями, влияет на `total`.
+- **Сортировка (#40, PR #83):** параметры `sortBy` (whitelist: `name`, `article`, `group`, `price`, `stock`)
+  и `order` (`asc`/`desc`); сортировка стабильная, null-безопасная, выполняется до пагинации.
+  README дополнен полным описанием контракта и curl-примерами.
+- **Архитектура:** `CatalogConfigService` отвечает за разбор и валидацию опций, страницы, фильтра и сортировки;
+  `ProductService` — за конвейер «фильтрация → маппинг → сортировка → пагинация»;
+  новые DTO: `CatalogFilter`, `PageOptions`, `PagedResponse<T>`, `SortOptions`, `SortOrder`.
+- **Тесты:** 35 тестов (1 контекстный, 3 availability, 14 config, 17 product), `BUILD SUCCESS`.
 
-- **Версия:** [1.140.0]
-- **Расширения:**
-  - Extension Pack for Java (Microsoft, `vscjava.vscode-java-pack`)
-  - Kilo Code (модель `kilo-auto/free`)
-
-### Настройка Maven в VS Code
-
-В `settings.json` указан путь к `mvn.cmd`:
-
-```json
-{
-  "maven.executable.path": "C:/Users/Home/.sdkman/candidates/maven/current/bin/mvn.cmd"
-}
-```
----
-
-## Репозиторий
-
-- **GitHub:** *(https://github.com/DanBrosCrut/java-backend-learning)*
-- **Структура:** `docs/` (конспекты), `health-service/` (Spring Boot)
+**Итог:** витрина настраивается под аккаунт, ищет, сортирует и отдаёт данные страницами
+с корректным общим количеством.
 
 ---
 
-## Ссылки
+## Архитектура и принятые решения
 
-- Scrum Guide 2020 (русский): https://scrumguides.org/download.html
-- МойСклад: https://www.moysklad.ru/
+| Решение | Обоснование |
+|---|---|
+| Без собственной БД | данные остаются в МойСклад, сервис — слой представления и агрегации |
+| Слои `controller → service → client/mapper` | тонкие контроллеры, бизнес-логика в сервисах, внешние вызовы изолированы |
+| Records для DTO | неизменяемость, минимум шаблонного кода, явный контракт |
+| `BigDecimal` для цен | отсутствие ошибок плавающей точки в деньгах |
+| Валидация на входе, единый `ErrorResponse` | предсказуемые 400/502 вместо стектрейсов |
+| Профили `dev`/`prod` | разный уровень логирования и доступность Swagger |
+| Секреты в `.env` | токен не попадает в репозиторий и логи |
 
----
-
-## Spring Boot: health-service
-
-**Дата:** 05.10.2026
-
-### Что сделано
-
-Создан минимальный Spring Boot проект `health-service` с эндпоинтом `GET /health`, возвращающим `ok`. Проект размещён внутри учебного репозитория `java-backend-learning` в папке `health-service/`. Репозиторий связан с GitHub, все изменения запушены.
-
-### Технологии и версии
-
-| Компонент | Версия |
-|-----------|--------|
-| Spring Boot | 4.1.1 |
-| Java | 21.0.2 LTS (Temurin) |
-| Maven | 3.9.10 |
-| Apache Tomcat | 11.0.24 (embedded) |
-| Spring Web | Spring MVC |
-| Порт приложения | 8080 |
-
-### Структура проекта
-```
-java-backend-learning/
-├── README.md                    ← этот файл
-├── REPORT.md                    ← недельный отчёт
-├── .gitignore
-├── docs/                        ← конспекты и заметки
-│   ├── agile-scrum.md           ← Agile, Scrum, роли, артефакты, DoD
-│   ├── environment.md           ← версии Java, Maven, настройка SDKMAN
-│   └── moysklad.md              ← МойСклад + онлайн-заказ
-└── health-service/              ← минимальный Spring Boot сервис
-    ├── pom.xml
-    ├── mvnw
-    ├── mvnw.cmd
-    └── src/
-        └── main/
-            ├── java/com/example/health_service/
-            │   ├── HealthServiceApplication.java
-            │   └── HealthController.java
-            └── resources/
-                └── application.properties
-```
+**Поток запроса каталога:**
+`GET /api/products` → `ProductController` (параметры) → `CatalogConfigService` (валидация опций, фильтра,
+пагинации, сортировки) → `ProductService` (ассортимент + остатки → фильтры → маппинг → сортировка → страница)
+→ `PagedResponse<ProductView>`.
 
 ---
 
-Как собрать
+## Текущий статус и ссылки на PR
 
-```
-cd health-service
-mvn clean package
-В папке target/ появляется health-service-0.0.1-SNAPSHOT.jar.
-```
+**Готово и слито:** PR #78 (Sprint 4), PR #79 (Vision/Backlog, `main` = `938c1bc`).
 
-Как запустить
-Вариант 1 — через Maven:
+**Открыты, ожидают ревью** — ветки образуют стек, сливать строго по порядку:
 
-```
-cd health-service
-mvn spring-boot:run
-```
+| PR | Задача | Issue | Ветка | Что добавляет |
+|---|---|---|---|---|
+| [#80](https://github.com/DanBrosCrut/java-backend-learning/pull/80) | Опции и конфигурация каталога | #76 | `feature/sprint-5-catalog-options` | `priceType`, `groups`, `fields`, `inStockOnly`, `/api/products/config` |
+| [#81](https://github.com/DanBrosCrut/java-backend-learning/pull/81) | Пагинация | #39 | `feature/sprint-5-pagination` | `page`, `size`, `{items,total,page,size}` |
+| [#82](https://github.com/DanBrosCrut/java-backend-learning/pull/82) | Фильтрация | #77 | `feature/sprint-5-filtering` | `q` по названию и артикулу |
+| [#83](https://github.com/DanBrosCrut/java-backend-learning/pull/83) | Сортировка + README | #40 | `feature/sprint-5-sorting` | `sortBy`, `order`, документация API |
 
-Вариант 2 — через собранный JAR:
+**Порядок слияния:** #80 → #81 → #82 → #83. Каждый следующий PR основан на предыдущем,
+поэтому до слияния первого PR в diff видны изменения предыдущих.
 
-```
-java -jar target/health-service-0.0.1-SNAPSHOT.jar
-```
+> Важно: `main` на момент подготовки отчёта не компилируется из-за упомянутого
+> в Спринте 4 рассинхрона имён файлов и record-типов. Исправление входит в PR #80;
+> после его слияния сборка и тесты на `main` зелёные (35/35).
 
-Ожидаемый вывод в логах:
+**Метрики**
 
-```
-Tomcat started on port 8080 (http) with context path '/'
-Started HealthServiceApplication in 1.124 seconds
-```
+- Тесты: **35** (`./mvnw clean test`), 0 падений.
+- Эндпоинты: `GET /health`, `GET /api/products`, `GET /api/products/config`, `POST /api/availability`.
+- Качество: единый формат ошибок, Swagger для всех эндпоинтов, Javadoc на публичных методах,
+  constructor injection, отсутствие секретов в коде.
 
-Как проверить
-Во втором терминале (первый занят приложением):
-
-```
-curl http://localhost:8080/health
-```
-
-Ответ:
-
-```
-ok
-```
-
-Через браузер: http://localhost:8080/health → ok.
-
-Что разобрал по ходу
-Spring Boot
-Spring Boot — это надстройка над Spring Framework. Убирает boilerplate-конфигурацию через автоконфигурацию и стартеры.
-
-Стартеры (starters) — наборы зависимостей «под задачу». spring-boot-starter-web тянет Spring MVC, Jackson (JSON), validation, embedded Tomcat.
-
-Автоконфигурация — Spring Boot анализирует classpath и настраивает бины сам. Видит Tomcat → поднимает встроенный веб-сервер. Видит Spring MVC → настраивает DispatcherServlet.
-
-Embedded Tomcat — сервер встроен в приложение, не нужен внешний контейнер. Собирается в один JAR, запускается командой java -jar.
-
-@SpringBootApplication — комбинация @Configuration + @EnableAutoConfiguration + @ComponentScan. Точка входа в приложение.
-
-Spring Web MVC
-@RestController — комбинация @Controller + @ResponseBody. Возвращаемое значение метода идёт в тело HTTP-ответа, а не в имя view.
-
-@GetMapping("/health") — сокращение от @RequestMapping(method = RequestMethod.GET, value = "/health"). Обрабатывает только GET-запросы по пути /health.
-
-DispatcherServlet — центральный сервлет Spring MVC. Принимает все запросы и маршрутизирует их по контроллерам на основе @RequestMapping.
-
-Maven
-Maven lifecycle — последовательность фаз: validate → compile → test → package → verify → install → deploy. Каждая фаза запускает предыдущие.
-
-mvn clean package — удаляет target/, компилирует, прогоняет тесты, собирает JAR.
-
-spring-boot-starter-parent — родительский POM, задаёт версии зависимостей, конфигурацию плагинов, дефолтные настройки.
-
-spring-boot-maven-plugin — плагин, который собирает executable JAR (fat JAR со всеми зависимостями) и предоставляет команду mvn spring-boot:run.
-
-Java-конвенции именования
-Пакеты пишутся в нижнем регистре, без дефисов. Spring Initializr автоматически преобразовал artifact id health-service → package health_service.
-
-Package declaration должен совпадать с физическим расположением файла. Если файл лежит в com/example/health_service/, то первая строка — package com.example.health_service;.
-
-###Литература
-
-Прочитано ~6 источников технической документации:
-
-Spring Boot Reference Documentation — https://docs.spring.io/spring-boot/index.html
-
-  Getting Started → Installing Spring Boot
-
-  Getting Started → Developing Your First Spring Boot Application
-
-  Reference → Core Principles (автоконфигурация, стартеры, embedded-сервер)
-
-Spring Framework Reference — Web MVC — https://docs.spring.io/spring-framework/reference/web/webmvc.html
-
-  DispatcherServlet — центральный сервлет Spring MVC
-
-  Annotated Controllers (@RestController, @GetMapping)
-
-Apache Maven — Getting Started — https://maven.apache.org/guides/getting-started/
-
-  Introduction to the Build Lifecycle
-
-  POM Reference (структура pom.xml, parent, dependencies, plugins)
-
-Spring Initializr — https://start.spring.io/
-
-  Разбор параметров генерации: Maven, Java 21, Spring Boot 4.1.1, Spring Web
-
-Apache Tomcat 11 Documentation — https://tomcat.apache.org/tomcat-11.0-doc/index.html
-
-  Архитектура: Connector, Engine, Host, Context
-
-  Embedded Tomcat — запуск внутри приложения
-
-SDKMAN Usage — https://sdkman.io/usage
-
-  Управление версиями Java и Maven
-
-### IRP, Агенты
-
-**Дата:** 06.10.2026
-
-### Что такое IRM (Idea Reality Matrix)
-## Что это:
-IRM (Idea Reality Matrix) — это модель для оценки «проектных реальностей» по четырём измерениям: Leadership, Communication, Strategy, Execution. Модель помогает понять, где проект силён, а где нужно улучшаться .
-
-Зачем изучал:
-
-Для понимания, как оценивать проекты с точки зрения «холистического подхода»
-
-IRM делит реальности на субъективные и объективные
-
-Субъективные: лидерство, коммуникация
-
-Объективные: стратегия, исполнение
-
-IRM — это инструмент для рефлексии команды и проекта
-
-Модель применима не только к управлению проектами, но и к рабочим процессам
-
-### Программирование через «агентов»
-## Что это:
-Агентное программирование — парадигма, где разработчик становится оркестратором AI-агентов, а не просто писателем кода .
-
-## Ключевые понятия:
-
-Термин	Определение```
-Agentic Programming	Парадигма: разработчик координирует автономных AI-агентов
-MCP (Model Context Protocol)	«USB-C для AI» — стандарт подключения AI к внешним данным 
-Cline	Open-source AI-агент для VS Code (step-by-step permissions, MCP) 
-Kilo Code	Open-source AI-агент (форк Cline + Roo Code), Orchestrator mode 
-Orchestrator Mode	Режим Kilo Code: маршрутизация задач к специализированным sub-агентам 
-Perception-Memory-Action	Архитектура LLM-агента: восприятие → память → действие 
-Human-in-the-loop	Человек в цикле: подтверждение действий агента```
-##Что такое MCP (подробнее):
-
-```MCP — открытый стандарт от Anthropic (конец 2024)
-
-Позволяет AI-агенту подключаться к внешним источникам: Git-репозиторий, база данных, документация
-
-Вместо «вставить код в промпт» — агент сам запрашивает нужные данные через MCP-сервер 
-
-MCP-серверы: один для кода, один для БД, один для трекера задач
-```
-
-## Как я применял:
-
-```
-Установил Kilo Code (модель kilo-auto/free) в VS Code
-
-Использовал для генерации boilerplate-кода (HealthController)
-
-Разбирал ошибки (порт 8080, package declaration)
-
-Понял, что агент — это инструмент, а не замена пониманию
-```
-
----
-```
-
-Агентное программирование — это смена парадигмы: от «написания кода» к «оркестрации агентов»
-
-MCP решает проблему контекста: агент сам запрашивает данные, а не гадает
-
-Важно сохранять human-in-the-loop: проверять, что агент сгенерировал
-
-Kilo Code — хороший старт для освоения агентного подхода
-```
+**Следующий шаг:** Спринт 6 — заказы: создание заказа в МойСклад и чтение заказа по идентификатору,
+затем MCP-интеграция и эксплуатационные задачи из `docs/backlog.md`.
