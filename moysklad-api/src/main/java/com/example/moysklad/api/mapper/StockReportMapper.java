@@ -1,62 +1,38 @@
 package com.example.moysklad.api.mapper;
 
-import com.example.moysklad.api.client.dto.RemapStockReportResponse;
-import com.example.moysklad.api.client.dto.RemapStockRow;
-import tools.jackson.databind.ObjectMapper;
+import com.example.moysklad.api.client.dto.RemapStockCurrentRow;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Parses the raw MoySklad stock report JSON into a lookup map of product ID to stock quantity.
+ * Maps the current stock report rows to a lookup map of product ID to stock quantity.
  */
 @Component
 public class StockReportMapper {
 
-    private final ObjectMapper objectMapper;
-
     /**
-     * Creates the mapper with the Spring-configured JSON object mapper.
+     * Maps current stock rows to a product ID to stock quantity lookup.
+     * Rows without a resolvable product ID are skipped; a missing quantity counts as zero.
      *
-     * @param objectMapper the Jackson object mapper
+     * @param rows the rows of {@code /report/stock/all/current}; {@code null} means no stock
+     * @return an immutable map of product ID to current stock quantity
      */
-    public StockReportMapper(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
-
-    /**
-     * Deserializes the stock report JSON and maps product IDs to their stock quantities.
-     * The product ID is extracted as the last path segment of {@code assortment.meta.href}.
-     *
-     * @param stockReportJson the raw JSON string from {@code /report/stock/all}
-     * @return a map of product ID to stock quantity; rows without a resolvable ID are skipped
-     */
-    public Map<String, BigDecimal> toStockMap(String stockReportJson) {
-        RemapStockReportResponse response = objectMapper.readValue(stockReportJson, RemapStockReportResponse.class);
-        if (response.rows() == null) {
+    public Map<String, BigDecimal> toStockMap(List<RemapStockCurrentRow> rows) {
+        if (rows == null) {
             return Map.of();
         }
-        return response.rows().stream()
-                .filter(row -> extractProductId(row) != null)
-                .collect(Collectors.toMap(
-                        StockReportMapper::extractProductId,
-                        row -> row.quantity() == null ? BigDecimal.ZERO : row.quantity(),
-                        (existing, replacement) -> existing));
-    }
-
-    private static String extractProductId(RemapStockRow row) {
-        if (row.assortment() == null
-                || row.assortment().meta() == null
-                || row.assortment().meta().href() == null) {
-            return null;
-        }
-        String href = row.assortment().meta().href();
-        int lastSlash = href.lastIndexOf('/');
-        if (lastSlash < 0 || lastSlash == href.length() - 1) {
-            return null;
-        }
-        return href.substring(lastSlash + 1);
+        return rows.stream()
+                .filter(row -> row.assortmentId() != null)
+                .collect(Collectors.collectingAndThen(
+                        Collectors.toMap(
+                                RemapStockCurrentRow::assortmentId,
+                                row -> Optional.ofNullable(row.stock()).orElse(BigDecimal.ZERO),
+                                (existing, replacement) -> existing),
+                        Map::copyOf));
     }
 }

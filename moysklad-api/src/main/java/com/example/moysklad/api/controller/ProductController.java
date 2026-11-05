@@ -66,7 +66,7 @@ public class ProductController {
                     Returns a page of the product catalog with current stock levels, filtered and projected \
                     according to the showcase options. The assortment snapshot is served from an in-memory cache: \
                     the X-Cache response header is HIT when it came from the cache and MISS when it was reloaded \
-                    from MoySklad. Pass invalidate=true to force a reload.""")
+                    from MoySklad. Pass invalidate=true to force a reload of the cache.""")
     @GetMapping
     public ResponseEntity<PagedResponse<ProductView>> getProducts(
             @Parameter(description = "Price type name, e.g. 'Цена продажи'. Empty means the first sale price", example = "Цена продажи")
@@ -87,7 +87,7 @@ public class ProductController {
             @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size, from 1 to 100", example = "20")
             @RequestParam(defaultValue = "20") int size,
-            @Parameter(description = "Drop the cached assortment snapshot and reload it from MoySklad", example = "false")
+            @Parameter(description = "Drop the cached assortment and stock snapshots and reload them from MoySklad", example = "false")
             @RequestParam(defaultValue = "false") boolean invalidate) {
         CatalogOptions options = catalogConfigService.parse(priceType, groups, fields, inStockOnly);
         CatalogFilter filter = catalogConfigService.parseFilter(q);

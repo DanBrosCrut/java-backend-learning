@@ -2,6 +2,7 @@ package com.example.moysklad.api.client;
 
 import com.example.moysklad.api.client.dto.RemapAssortmentResponse;
 import com.example.moysklad.api.client.dto.RemapAssortmentRow;
+import com.example.moysklad.api.client.dto.RemapStockCurrentRow;
 import com.example.moysklad.api.config.MoyskladProperties;
 import com.example.moysklad.api.exception.MoyskladApiException;
 import org.junit.jupiter.api.BeforeEach;
@@ -115,6 +116,58 @@ class MoyskladClientTest {
                 .isInstanceOf(MoyskladApiException.class)
                 .hasMessageContaining("500")
                 .hasMessageContaining("offset 2");
+    }
+
+    @Test
+    void getCurrentStocks_requestsCurrentReportWithPhysicalStock() {
+        server.expect(requestTo(BASE_URL + "/report/stock/all/current?stockType=stock"))
+                .andRespond(withSuccess("""
+                        [{"assortmentId":"1","stock":3.0},{"assortmentId":"2","stock":4.5}]
+                        """, MediaType.APPLICATION_JSON));
+
+        List<RemapStockCurrentRow> rows = client(1000).getCurrentStocks();
+
+        assertThat(rows)
+                .extracting(RemapStockCurrentRow::assortmentId)
+                .containsExactly("1", "2");
+        assertThat(rows.getFirst().stock()).isEqualByComparingTo("3.0");
+        assertThat(rows.getLast().stock()).isEqualByComparingTo("4.5");
+        server.verify();
+    }
+
+    @Test
+    void getCurrentStocks_ignoresFieldsNotRequestedByStockType() {
+        server.expect(requestTo(BASE_URL + "/report/stock/all/current?stockType=stock"))
+                .andRespond(withSuccess("""
+                        [{"assortmentId":"1","stock":3,"reserve":1,"inTransit":2,"quantity":0}]
+                        """, MediaType.APPLICATION_JSON));
+
+        List<RemapStockCurrentRow> rows = client(1000).getCurrentStocks();
+
+        assertThat(rows).singleElement()
+                .satisfies(row -> assertThat(row.stock()).isEqualByComparingTo("3"));
+        server.verify();
+    }
+
+    @Test
+    void getCurrentStocks_emptyReport_returnsEmptyList() {
+        server.expect(requestTo(BASE_URL + "/report/stock/all/current?stockType=stock"))
+                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+
+        assertThat(client(1000).getCurrentStocks()).isEmpty();
+        server.verify();
+    }
+
+    @Test
+    void getCurrentStocks_serverError_throwsMoyskladApiException() {
+        server.expect(requestTo(BASE_URL + "/report/stock/all/current?stockType=stock"))
+                .andRespond(withServerError());
+
+        MoyskladClient client = client(1000);
+
+        assertThatThrownBy(client::getCurrentStocks)
+                .isInstanceOf(MoyskladApiException.class)
+                .hasMessageContaining("500");
     }
 
     private MoyskladClient client(int pageSize) {

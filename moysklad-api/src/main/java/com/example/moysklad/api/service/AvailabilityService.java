@@ -1,10 +1,8 @@
 package com.example.moysklad.api.service;
 
-import com.example.moysklad.api.client.MoyskladClient;
 import com.example.moysklad.api.dto.AvailabilityCheckRequest;
 import com.example.moysklad.api.dto.AvailabilityCheckResponse;
 import com.example.moysklad.api.dto.AvailabilityCheckResponse.MissingPosition;
-import com.example.moysklad.api.mapper.StockReportMapper;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -17,18 +15,15 @@ import java.util.Map;
 @Service
 public class AvailabilityService {
 
-    private final MoyskladClient moyskladClient;
-    private final StockReportMapper stockReportMapper;
+    private final StockCache stockCache;
 
     /**
-     * Creates the service with the MoySklad client and stock report parser.
+     * Creates the service with the current stock cache.
      *
-     * @param moyskladClient    the MoySklad API client
-     * @param stockReportMapper the stock report parser
+     * @param stockCache the in-memory cache of the current stock report
      */
-    public AvailabilityService(MoyskladClient moyskladClient, StockReportMapper stockReportMapper) {
-        this.moyskladClient = moyskladClient;
-        this.stockReportMapper = stockReportMapper;
+    public AvailabilityService(StockCache stockCache) {
+        this.stockCache = stockCache;
     }
 
     /**
@@ -40,7 +35,7 @@ public class AvailabilityService {
      * @return the availability result with the list of missing positions
      */
     public AvailabilityCheckResponse checkAvailability(AvailabilityCheckRequest request) {
-        Map<String, BigDecimal> stocks = stockReportMapper.toStockMap(moyskladClient.getStockReport());
+        Map<String, BigDecimal> stocks = stockCache.get(false).body();
         List<MissingPosition> missing = java.util.Optional.ofNullable(request.positions())
                 .map(positions -> positions.stream()
                         .filter(position -> {
