@@ -68,6 +68,7 @@ class ProductServiceTest {
     void setUp() {
         productService = new ProductService(
                 moyskladClient,
+                new AssortmentCache(moyskladClient),
                 new ProductMapper(),
                 new StockReportMapper(new ObjectMapper()));
     }
@@ -177,7 +178,7 @@ class ProductServiceTest {
                 product(SECOND_PRODUCT_ID, "Gadget", "ART-2", GROUPS, "250000"));
 
         PagedResponse<ProductView> page = productService.getProducts(
-                CatalogOptions.defaults(), new CatalogFilter(" wid "), NATURAL_SORT, FIRST_PAGE);
+                CatalogOptions.defaults(), new CatalogFilter(" wid "), NATURAL_SORT, FIRST_PAGE).body();
 
         assertThat(page.items()).singleElement()
                 .extracting(ProductView::id)
@@ -192,7 +193,7 @@ class ProductServiceTest {
                 product(SECOND_PRODUCT_ID, "Gadget", "ART-2", GROUPS, "250000"));
 
         PagedResponse<ProductView> page = productService.getProducts(
-                CatalogOptions.defaults(), new CatalogFilter("art-2"), NATURAL_SORT, FIRST_PAGE);
+                CatalogOptions.defaults(), new CatalogFilter("art-2"), NATURAL_SORT, FIRST_PAGE).body();
 
         assertThat(page.items()).singleElement()
                 .extracting(ProductView::id)
@@ -204,7 +205,7 @@ class ProductServiceTest {
         givenAssortment(product(PRODUCT_ID, "Widget", "ART-1", GROUPS, "100000"));
 
         PagedResponse<ProductView> page = productService.getProducts(
-                CatalogOptions.defaults(), new CatalogFilter("nothing"), NATURAL_SORT, FIRST_PAGE);
+                CatalogOptions.defaults(), new CatalogFilter("nothing"), NATURAL_SORT, FIRST_PAGE).body();
 
         assertThat(page.items()).isEmpty();
         assertThat(page.total()).isZero();
@@ -216,7 +217,7 @@ class ProductServiceTest {
                 product(SECOND_PRODUCT_ID, "Gadget", "ART-2", GROUPS, "250000"));
 
         PagedResponse<ProductView> page = productService.getProducts(
-                CatalogOptions.defaults(), CatalogFilter.none(), NATURAL_SORT, new PageOptions(1, 1));
+                CatalogOptions.defaults(), CatalogFilter.none(), NATURAL_SORT, new PageOptions(1, 1)).body();
 
         assertThat(page.items()).singleElement()
                 .extracting(ProductView::id)
@@ -231,7 +232,7 @@ class ProductServiceTest {
         givenAssortment(product(PRODUCT_ID, "Widget", "ART-1", GROUPS, "100000"));
 
         PagedResponse<ProductView> page = productService.getProducts(
-                CatalogOptions.defaults(), CatalogFilter.none(), NATURAL_SORT, new PageOptions(5, 20));
+                CatalogOptions.defaults(), CatalogFilter.none(), NATURAL_SORT, new PageOptions(5, 20)).body();
 
         assertThat(page.items()).isEmpty();
         assertThat(page.total()).isEqualTo(1);
@@ -300,7 +301,7 @@ class ProductServiceTest {
                 new CatalogOptions(null, List.of(), false, List.of(CatalogField.NAME)),
                 CatalogFilter.none(),
                 new SortOptions(CatalogField.PRICE, SortOrder.ASC),
-                FIRST_PAGE);
+                FIRST_PAGE).body();
 
         assertThat(page.items())
                 .extracting(ProductView::id)
@@ -309,11 +310,13 @@ class ProductServiceTest {
 
     private PagedResponse<ProductView> sortBy(CatalogField field, SortOrder order, PageOptions pageOptions) {
         return productService.getProducts(
-                CatalogOptions.defaults(), CatalogFilter.none(), new SortOptions(field, order), pageOptions);
+                CatalogOptions.defaults(), CatalogFilter.none(), new SortOptions(field, order), pageOptions).body();
     }
 
     private List<ProductView> getProducts(CatalogOptions options) {
-        return productService.getProducts(options, CatalogFilter.none(), NATURAL_SORT, FIRST_PAGE).items();
+        return productService.getProducts(options, CatalogFilter.none(), NATURAL_SORT, FIRST_PAGE)
+                .body()
+                .items();
     }
 
     private void givenAssortment(RemapAssortmentRow... rows) {

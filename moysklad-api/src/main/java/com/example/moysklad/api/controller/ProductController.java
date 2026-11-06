@@ -7,11 +7,13 @@ import com.example.moysklad.api.dto.PageOptions;
 import com.example.moysklad.api.dto.PagedResponse;
 import com.example.moysklad.api.dto.ProductView;
 import com.example.moysklad.api.dto.SortOptions;
+import com.example.moysklad.api.service.CachedResult;
 import com.example.moysklad.api.service.CatalogConfigService;
 import com.example.moysklad.api.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -24,6 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/products")
 @Tag(name = "Products", description = "Product assortment catalog and showcase display options from MoySklad")
 public class ProductController {
+
+    /**
+     * Name of the response header reporting whether the catalog snapshot came from the in-memory cache.
+     */
+    public static final String CACHE_HEADER = "X-Cache";
 
     private final ProductService productService;
     private final CatalogConfigService catalogConfigService;
@@ -51,12 +58,17 @@ public class ProductController {
      * @param order       the sort direction: asc or desc
      * @param page        the zero-based page index
      * @param size        the page size (1..100)
-     * @return one configured page of products with the total number of matches
+     * @param invalidate  whether to force a reload of the cached assortment snapshot
+     * @return one configured page of products with the total number of matches and the {@code X-Cache} header
      */
     @Operation(summary = "Get product assortment",
-            description = "Returns a page of the product catalog with current stock levels, filtered and projected according to the showcase options")
+            description = """
+                    Returns a page of the product catalog with current stock levels, filtered and projected \
+                    according to the showcase options. The assortment snapshot is served from an in-memory cache: \
+                    the X-Cache response header is HIT when it came from the cache and MISS when it was reloaded \
+                    from MoySklad. Pass invalidate=true to force a reload.""")
     @GetMapping
-    public PagedResponse<ProductView> getProducts(
+    public ResponseEntity<PagedResponse<ProductView>> getProducts(
             @Parameter(description = "Price type name, e.g. 'Цена продажи'. Empty means the first sale price", example = "Цена продажи")
             @RequestParam(required = false) String priceType,
             @Parameter(description = "Comma-separated product group names. Empty means all groups", example = "Товары")
@@ -74,23 +86,39 @@ public class ProductController {
             @Parameter(description = "Zero-based page index", example = "0")
             @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size, from 1 to 100", example = "20")
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Drop the cached assortment snapshot and reload it from MoySklad", example = "false")
+            @RequestParam(defaultValue = "false") boolean invalidate) {
         CatalogOptions options = catalogConfigService.parse(priceType, groups, fields, inStockOnly);
         CatalogFilter filter = catalogConfigService.parseFilter(q);
         SortOptions sort = catalogConfigService.parseSort(sortBy, order);
         PageOptions pageOptions = catalogConfigService.parsePage(page, size);
-        return productService.getProducts(options, filter, sort, pageOptions);
+        CachedResult<PagedResponse<ProductView>> result =
+                productService.getProducts(options, filter, sort, pageOptions, invalidate);
+        return withCacheHeader(result);
     }
 
     /**
      * Returns the catalog options available for the current MoySklad account.
      *
-     * @return available price types, groups, fields and default options
+     * @param invalidate whether to force a reload of the cached assortment snapshot
+     * @return available price types, groups, fields and default options with the {@code X-Cache} header
      */
     @Operation(summary = "Get catalog configuration",
-            description = "Returns the price types and product groups present in MoySklad, the supported fields and the default options")
+            description = """
+                    Returns the price types and product groups present in MoySklad, the supported fields and the \
+                    default options. Served from the same in-memory assortment cache as the catalog; the X-Cache \
+                    header reports HIT or MISS, and invalidate=true forces a reload.""")
     @GetMapping("/config")
-    public CatalogConfigView getConfig() {
-        return catalogConfigService.describe();
+    public ResponseEntity<CatalogConfigView> getConfig(
+            @Parameter(description = "Drop the cached assortment snapshot and reload it from MoySklad", example = "false")
+            @RequestParam(defaultValue = "false") boolean invalidate) {
+        return withCacheHeader(catalogConfigService.describe(invalidate));
+    }
+
+    private static <T> ResponseEntity<T> withCacheHeader(CachedResult<T> result) {
+        return ResponseEntity.ok()
+                .header(CACHE_HEADER, result.status().name())
+                .body(result.body());
     }
 }

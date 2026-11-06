@@ -1,6 +1,7 @@
 package com.example.moysklad.api.service;
 
 import com.example.moysklad.api.client.MoyskladClient;
+import com.example.moysklad.api.client.dto.RemapAssortmentResponse;
 import com.example.moysklad.api.client.dto.RemapAssortmentRow;
 import com.example.moysklad.api.client.dto.RemapPriceType;
 import com.example.moysklad.api.client.dto.RemapSalePrice;
@@ -31,46 +32,72 @@ import java.util.Optional;
 public class ProductService {
 
     private final MoyskladClient moyskladClient;
+    private final AssortmentCache assortmentCache;
     private final ProductMapper productMapper;
     private final StockReportMapper stockReportMapper;
 
     /**
-     * Creates the service with the MoySklad client and mappers.
+     * Creates the service with the MoySklad client, the assortment cache and the mappers.
      *
-     * @param moyskladClient    the MoySklad API client
+     * @param moyskladClient    the MoySklad API client used for the stock report
+     * @param assortmentCache   the in-memory cache of the full assortment snapshot
      * @param productMapper     the Remap-to-product mapper
      * @param stockReportMapper the stock report parser
      */
     public ProductService(MoyskladClient moyskladClient,
+                          AssortmentCache assortmentCache,
                           ProductMapper productMapper,
                           StockReportMapper stockReportMapper) {
         this.moyskladClient = moyskladClient;
+        this.assortmentCache = assortmentCache;
         this.productMapper = productMapper;
         this.stockReportMapper = stockReportMapper;
+    }
+
+    /**
+     * Returns one page of products using the cached assortment snapshot without forcing a reload.
+     *
+     * @param options the catalog display options; {@code null} means defaults
+     * @param filter the free-text filter matched against name and article
+     * @param sort the sorting of the resulting page; {@code null} means the natural order
+     * @param pageOptions the pagination parameters
+     * @return one page of products plus the cache status of the assortment lookup
+     */
+    public CachedResult<PagedResponse<ProductView>> getProducts(CatalogOptions options,
+                                                                CatalogFilter filter,
+                                                                SortOptions sort,
+                                                                PageOptions pageOptions) {
+        return getProducts(options, filter, sort, pageOptions, false);
     }
 
     /**
      * Fetches the assortment and the stock report, merges them by product ID,
      * applies the showcase options and maps the result to a single page of product views.
      * Products missing from the stock report get a stock of zero.
+     * <p>
+     * The assortment comes from the in-memory cache, so only the first request (or a request that asks
+     * for invalidation) reads the complete catalog from MoySklad.
      *
      * @param options the catalog display options; {@code null} means defaults
      * @param filter the free-text filter matched against name and article
      * @param sort the sorting of the resulting page; {@code null} means the natural order
      * @param pageOptions the pagination parameters
+     * @param invalidate whether to drop the cached assortment snapshot before reading it
      * @return one page of products matching the options and filter, sorted as requested,
-     *         with the total number of matches
+     *         with the total number of matches, plus the cache status of the assortment lookup
      * @throws InvalidCatalogOptionException when the requested price type does not exist in the assortment
      */
-    public PagedResponse<ProductView> getProducts(CatalogOptions options,
-                                                  CatalogFilter filter,
-                                                  SortOptions sort,
-                                                  PageOptions pageOptions) {
+    public CachedResult<PagedResponse<ProductView>> getProducts(CatalogOptions options,
+                                                                CatalogFilter filter,
+                                                                SortOptions sort,
+                                                                PageOptions pageOptions,
+                                                                boolean invalidate) {
         CatalogOptions effective = Optional.ofNullable(options).orElseGet(CatalogOptions::defaults);
         CatalogFilter effectiveFilter = Optional.ofNullable(filter).orElseGet(CatalogFilter::none);
         SortOptions effectiveSort = Optional.ofNullable(sort).orElseGet(SortOptions::natural);
         Map<String, BigDecimal> stocks = stockReportMapper.toStockMap(moyskladClient.getStockReport());
-        List<RemapAssortmentRow> rows = Optional.ofNullable(moyskladClient.getAssortment().rows())
+        CachedResult<RemapAssortmentResponse> assortment = assortmentCache.get(invalidate);
+        List<RemapAssortmentRow> rows = Optional.ofNullable(assortment.body().rows())
                 .orElse(List.of());
         validatePriceType(rows, effective);
 
@@ -82,7 +109,9 @@ public class ProductService {
                 .sorted(comparatorFor(effectiveSort))
                 .toList();
 
-        return PagedResponse.of(products, pageOptions.page(), pageOptions.size());
+        return new CachedResult<>(
+                PagedResponse.of(products, pageOptions.page(), pageOptions.size()),
+                assortment.status());
     }
 
     private static boolean matchesQuery(RemapAssortmentRow row, CatalogFilter filter) {

@@ -1,6 +1,6 @@
 package com.example.moysklad.api.service;
 
-import com.example.moysklad.api.client.MoyskladClient;
+import com.example.moysklad.api.client.dto.RemapAssortmentResponse;
 import com.example.moysklad.api.client.dto.RemapAssortmentRow;
 import com.example.moysklad.api.client.dto.RemapPriceType;
 import com.example.moysklad.api.client.dto.RemapSalePrice;
@@ -41,15 +41,15 @@ public class CatalogConfigService {
      */
     public static final int MAX_QUERY_LENGTH = 100;
 
-    private final MoyskladClient moyskladClient;
+    private final AssortmentCache assortmentCache;
 
     /**
-     * Creates the service with the MoySklad client used to discover available options.
+     * Creates the service with the assortment cache used to discover the available options.
      *
-     * @param moyskladClient the MoySklad API client
+     * @param assortmentCache the in-memory cache of the full assortment snapshot
      */
-    public CatalogConfigService(MoyskladClient moyskladClient) {
-        this.moyskladClient = moyskladClient;
+    public CatalogConfigService(AssortmentCache assortmentCache) {
+        this.assortmentCache = assortmentCache;
     }
 
     /**
@@ -126,11 +126,14 @@ public class CatalogConfigService {
     /**
      * Describes the showcase options available for the current MoySklad account:
      * price types and product groups present in the assortment, supported fields and defaults.
+     * The assortment is read from the in-memory cache; {@code invalidate = true} forces a reload.
      *
-     * @return the available catalog configuration
+     * @param invalidate whether to drop the cached assortment snapshot before reading it
+     * @return the available catalog configuration plus the cache status of the assortment lookup
      */
-    public CatalogConfigView describe() {
-        List<RemapAssortmentRow> rows = Optional.ofNullable(moyskladClient.getAssortment().rows())
+    public CachedResult<CatalogConfigView> describe(boolean invalidate) {
+        CachedResult<RemapAssortmentResponse> assortment = assortmentCache.get(invalidate);
+        List<RemapAssortmentRow> rows = Optional.ofNullable(assortment.body().rows())
                 .orElse(List.of());
 
         List<String> priceTypes = rows.stream()
@@ -160,7 +163,9 @@ public class CatalogConfigService {
                 false,
                 CatalogOptions.ALL_FIELDS);
 
-        return new CatalogConfigView(priceTypes, groups, fields, defaults);
+        return new CachedResult<>(
+                new CatalogConfigView(priceTypes, groups, fields, defaults),
+                assortment.status());
     }
 
     private static SortOrder parseOrder(String order) {
