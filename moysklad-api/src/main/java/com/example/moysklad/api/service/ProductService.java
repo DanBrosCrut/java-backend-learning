@@ -1,6 +1,5 @@
 package com.example.moysklad.api.service;
 
-import com.example.moysklad.api.client.MoyskladClient;
 import com.example.moysklad.api.client.dto.RemapAssortmentResponse;
 import com.example.moysklad.api.client.dto.RemapAssortmentRow;
 import com.example.moysklad.api.client.dto.RemapPriceType;
@@ -14,7 +13,6 @@ import com.example.moysklad.api.dto.SortOptions;
 import com.example.moysklad.api.dto.SortOrder;
 import com.example.moysklad.api.exception.InvalidCatalogOptionException;
 import com.example.moysklad.api.mapper.ProductMapper;
-import com.example.moysklad.api.mapper.StockReportMapper;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -31,27 +29,23 @@ import java.util.Optional;
 @Service
 public class ProductService {
 
-    private final MoyskladClient moyskladClient;
     private final AssortmentCache assortmentCache;
+    private final StockCache stockCache;
     private final ProductMapper productMapper;
-    private final StockReportMapper stockReportMapper;
 
     /**
-     * Creates the service with the MoySklad client, the assortment cache and the mappers.
+     * Creates the service with the assortment cache, the current stock cache and the product mapper.
      *
-     * @param moyskladClient    the MoySklad API client used for the stock report
-     * @param assortmentCache   the in-memory cache of the full assortment snapshot
-     * @param productMapper     the Remap-to-product mapper
-     * @param stockReportMapper the stock report parser
+     * @param assortmentCache the in-memory cache of the full assortment snapshot
+     * @param stockCache      the in-memory cache of the current stock report
+     * @param productMapper   the Remap-to-product mapper
      */
-    public ProductService(MoyskladClient moyskladClient,
-                          AssortmentCache assortmentCache,
-                          ProductMapper productMapper,
-                          StockReportMapper stockReportMapper) {
-        this.moyskladClient = moyskladClient;
+    public ProductService(AssortmentCache assortmentCache,
+                          StockCache stockCache,
+                          ProductMapper productMapper) {
         this.assortmentCache = assortmentCache;
+        this.stockCache = stockCache;
         this.productMapper = productMapper;
-        this.stockReportMapper = stockReportMapper;
     }
 
     /**
@@ -95,7 +89,7 @@ public class ProductService {
         CatalogOptions effective = Optional.ofNullable(options).orElseGet(CatalogOptions::defaults);
         CatalogFilter effectiveFilter = Optional.ofNullable(filter).orElseGet(CatalogFilter::none);
         SortOptions effectiveSort = Optional.ofNullable(sort).orElseGet(SortOptions::natural);
-        Map<String, BigDecimal> stocks = stockReportMapper.toStockMap(moyskladClient.getStockReport());
+        Map<String, BigDecimal> stocks = stockCache.get(invalidate).body();
         CachedResult<RemapAssortmentResponse> assortment = assortmentCache.get(invalidate);
         List<RemapAssortmentRow> rows = Optional.ofNullable(assortment.body().rows())
                 .orElse(List.of());

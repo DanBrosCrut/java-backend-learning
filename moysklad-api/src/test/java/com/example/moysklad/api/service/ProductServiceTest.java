@@ -5,6 +5,7 @@ import com.example.moysklad.api.client.dto.RemapAssortmentResponse;
 import com.example.moysklad.api.client.dto.RemapAssortmentRow;
 import com.example.moysklad.api.client.dto.RemapPriceType;
 import com.example.moysklad.api.client.dto.RemapSalePrice;
+import com.example.moysklad.api.client.dto.RemapStockCurrentRow;
 import com.example.moysklad.api.dto.CatalogField;
 import com.example.moysklad.api.dto.CatalogFilter;
 import com.example.moysklad.api.dto.CatalogOptions;
@@ -21,7 +22,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -44,20 +44,8 @@ class ProductServiceTest {
     private static final PageOptions FIRST_PAGE = new PageOptions(0, 20);
     private static final SortOptions NATURAL_SORT = SortOptions.natural();
 
-    private static final String STOCK_REPORT_JSON = """
-            {
-              "rows": [
-                {
-                  "assortment": {
-                    "meta": {
-                      "href": "https://api.moysklad.ru/api/remap/1.2/entity/product/123e4567-e89b-12d3-a456-426614174000"
-                    }
-                  },
-                  "quantity": 5
-                }
-              ]
-            }
-            """;
+    private static final List<RemapStockCurrentRow> STOCK_ROWS = List.of(
+            new RemapStockCurrentRow(PRODUCT_ID, new BigDecimal("5")));
 
     @Mock
     private MoyskladClient moyskladClient;
@@ -67,10 +55,9 @@ class ProductServiceTest {
     @BeforeEach
     void setUp() {
         productService = new ProductService(
-                moyskladClient,
                 new AssortmentCache(moyskladClient),
-                new ProductMapper(),
-                new StockReportMapper(new ObjectMapper()));
+                new StockCache(moyskladClient, new StockReportMapper()),
+                new ProductMapper());
     }
 
     @Test
@@ -321,7 +308,7 @@ class ProductServiceTest {
 
     private void givenAssortment(RemapAssortmentRow... rows) {
         when(moyskladClient.getAssortment()).thenReturn(new RemapAssortmentResponse(List.of(rows)));
-        when(moyskladClient.getStockReport()).thenReturn(STOCK_REPORT_JSON);
+        when(moyskladClient.getCurrentStocks()).thenReturn(STOCK_ROWS);
     }
 
     private static RemapAssortmentRow product(String id,

@@ -2,10 +2,12 @@ package com.example.moysklad.api.client;
 
 import com.example.moysklad.api.client.dto.RemapAssortmentResponse;
 import com.example.moysklad.api.client.dto.RemapAssortmentRow;
+import com.example.moysklad.api.client.dto.RemapStockCurrentRow;
 import com.example.moysklad.api.config.MoyskladProperties;
 import com.example.moysklad.api.exception.MoyskladApiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
@@ -27,7 +29,8 @@ public class MoyskladClient {
     private static final Logger log = LoggerFactory.getLogger(MoyskladClient.class);
 
     private static final String ASSORTMENT_PATH = "/entity/assortment";
-    private static final String STOCK_REPORT_PATH = "/report/stock/all";
+    private static final String STOCK_CURRENT_PATH = "/report/stock/all/current";
+    private static final String STOCK_TYPE_STOCK = "stock";
 
     private final RestClient restClient;
     private final int assortmentPageSize;
@@ -73,19 +76,28 @@ public class MoyskladClient {
     }
 
     /**
-     * Fetches the stock report from the Remap 1.2 API ({@code /report/stock/all}).
+     * Fetches the current stock report from the Remap 1.2 API ({@code /report/stock/all/current}).
+     * <p>
+     * The {@code stockType=stock} parameter makes MoySklad return the physical stock on hand
+     * (not the accumulated movements of the extended report), which is the value shown in the catalog.
      *
-     * @return the raw JSON string of the stock report
+     * @return one row per product with a non-zero current stock; empty when the account has no stock
+     * @throws MoyskladApiException when the request fails with an HTTP error (4xx or 5xx)
      */
-    public String getStockReport() {
+    public List<RemapStockCurrentRow> getCurrentStocks() {
         try {
-            return restClient.get()
-                    .uri(STOCK_REPORT_PATH)
+            List<RemapStockCurrentRow> rows = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path(STOCK_CURRENT_PATH)
+                            .queryParam("stockType", STOCK_TYPE_STOCK)
+                            .build())
                     .retrieve()
-                    .body(String.class);
+                    .body(new ParameterizedTypeReference<List<RemapStockCurrentRow>>() {
+                    });
+            return Optional.ofNullable(rows).orElse(List.of());
         } catch (HttpStatusCodeException ex) {
             throw new MoyskladApiException(
-                    "MoySklad stock report request failed with status " + ex.getStatusCode().value(),
+                    "MoySklad current stock report request failed with status " + ex.getStatusCode().value(),
                     ex);
         }
     }
