@@ -207,6 +207,85 @@ curl -X POST "http://localhost:8080/api/availability" \
 
 Ответ: `{"available":true,"missing":[]}`; если остатка не хватает — `available: false` и список `missing` с полями `id`, `requested`, `available`.
 
+### Корзина (файловая)
+
+Корзина хранится в JSON-файле `data/cart.json` (путь задаётся свойством `app.cart.file`).
+Файл переживает перезапуск приложения и создаётся автоматически при первом добавлении товара.
+Каталог, цены и остатки по-прежнему берутся из МойСклад — собственной БД нет.
+
+#### POST /api/cart/items
+
+Добавляет товар. Если товар уже в корзине, количество увеличивается.
+
+```bash
+curl -X POST "http://localhost:8080/api/cart/items" \
+  -H "Content-Type: application/json" \
+  -d '{"productId":"<uuid-товара>","quantity":2}'
+```
+
+Ответ `201 Created`: `{"productId":"<uuid-товара>","quantity":2}`.
+`quantity < 1` или пустой `productId` → `400 VALIDATION_ERROR`.
+
+#### GET /api/cart
+
+```bash
+curl "http://localhost:8080/api/cart"
+```
+
+Ответ: `{"items":[{"productId":"<uuid-товара>","quantity":2}],"totalQuantity":2}`.
+Если файла ещё нет — пустая корзина.
+
+#### DELETE /api/cart/items/{productId}
+
+```bash
+curl -X DELETE "http://localhost:8080/api/cart/items/<uuid-товара>"
+```
+
+Ответ `204 No Content`. Если товара нет в корзине → `404 CART_ITEM_NOT_FOUND`.
+
+Файл корзины — JSON-массив позиций:
+
+```json
+[
+  {"productId": "<uuid-товара>", "quantity": 2}
+]
+```
+
+Файл исключён из Git (`moysklad-api/data/.gitignore`); его можно удалить — при следующем запросе корзина будет пустой.
+
+### POST /api/orders/validate
+
+Проверяет позиции перед оформлением заказа, но **не создаёт заказ**.
+Использует тот же кеш остатков, что и `POST /api/availability`.
+
+```bash
+curl -X POST "http://localhost:8080/api/orders/validate" \
+  -H "Content-Type: application/json" \
+  -d '{"positions":[{"productId":"<uuid-товара>","quantity":10}]}'
+```
+
+Если остатка хватает: `{"valid":true,"errors":[]}`.
+
+Если не хватает — для каждой позиции возвращается ошибка:
+
+```json
+{
+  "valid": false,
+  "errors": [{
+    "productId": "<uuid-товара>",
+    "requested": 10,
+    "available": 5,
+    "message": "Insufficient stock for 'Товар': requested 10, available 5",
+    "alternatives": [
+      {"productId":"<uuid-товара>","name":"Другой товар","article":"ART-2","price":100.00,"stock":3}
+    ]
+  }]
+}
+```
+
+Альтернативы — товары в наличии: сначала из той же группы, затем из других, не больше трёх.
+Пустой список `positions` или `quantity < 1` → `400 VALIDATION_ERROR`.
+
 ### Формат ошибок
 
 Все ошибки возвращаются в едином виде:
@@ -218,7 +297,7 @@ curl -X POST "http://localhost:8080/api/availability" \
 }
 ```
 
-Коды: `INVALID_CATALOG_OPTION`, `INVALID_PAGINATION` (400), `MOYSKLAD_ERROR` (502), `INTERNAL_ERROR` (500).
+Коды: `INVALID_CATALOG_OPTION`, `INVALID_PAGINATION`, `VALIDATION_ERROR` (400), `CART_ITEM_NOT_FOUND` (404), `CART_STORAGE_ERROR` (500), `MOYSKLAD_ERROR` (502), `INTERNAL_ERROR` (500).
 
 ## Конфигурация
 
@@ -234,6 +313,11 @@ moysklad:
   base-url: https://api.moysklad.ru/api/remap/1.2
   # размер страницы при чтении ассортимента (Remap: максимум 1000)
   assortment-page-size: 1000
+
+app:
+  cart:
+    # файл корзины относительно рабочего каталога приложения
+    file: data/cart.json
 ```
 
 Профили вынесены в отдельные файлы:
