@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
+import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -133,6 +134,38 @@ class MoyskladClientTest {
         assertThat(rows.getFirst().stock()).isEqualByComparingTo("3.0");
         assertThat(rows.getLast().stock()).isEqualByComparingTo("4.5");
         server.verify();
+    }
+
+    @Test
+    void getCurrentStocks_changedSince_requestsDeltaInMoscowTimeWithZeroLines() {
+        server.expect(requestTo(BASE_URL
+                        + "/report/stock/all/current?stockType=stock"
+                        + "&changedSince=2026-11-10%2000:30:00&include=zeroLines"))
+                .andRespond(withSuccess("""
+                        [{"assortmentId":"1","stock":0}]
+                        """, MediaType.APPLICATION_JSON));
+
+        List<RemapStockCurrentRow> rows =
+                client(1000).getCurrentStocks(Instant.parse("2026-11-09T21:30:00Z"));
+
+        assertThat(rows).singleElement()
+                .satisfies(row -> assertThat(row.stock()).isEqualByComparingTo("0"));
+        server.verify();
+    }
+
+    @Test
+    void getCurrentStocks_deltaServerError_throwsMoyskladApiException() {
+        server.expect(requestTo(BASE_URL
+                        + "/report/stock/all/current?stockType=stock"
+                        + "&changedSince=2026-11-09%2013:15:00&include=zeroLines"))
+                .andRespond(withServerError());
+
+        MoyskladClient client = client(1000);
+        Instant changedSince = Instant.parse("2026-11-09T10:15:00Z");
+
+        assertThatThrownBy(() -> client.getCurrentStocks(changedSince))
+                .isInstanceOf(MoyskladApiException.class)
+                .hasMessageContaining("500");
     }
 
     @Test

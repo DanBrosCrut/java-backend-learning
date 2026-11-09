@@ -2,6 +2,7 @@ package com.example.moysklad.api.service;
 
 import com.example.moysklad.api.client.MoyskladClient;
 import com.example.moysklad.api.client.dto.RemapStockCurrentRow;
+import com.example.moysklad.api.config.StockCacheProperties;
 import com.example.moysklad.api.dto.AvailabilityCheckRequest;
 import com.example.moysklad.api.dto.AvailabilityCheckRequest.Position;
 import com.example.moysklad.api.dto.AvailabilityCheckResponse;
@@ -13,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,7 +41,8 @@ class AvailabilityServiceTest {
     @BeforeEach
     void setUp() {
         availabilityService = new AvailabilityService(
-                new StockCache(moyskladClient, new StockReportMapper()));
+                new StockCache(moyskladClient, new StockReportMapper(),
+                        StockCacheProperties.defaults(), Clock.systemUTC()));
     }
 
     @Test
