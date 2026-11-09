@@ -2,6 +2,7 @@ package com.example.moysklad.api.service;
 
 import com.example.moysklad.api.client.MoyskladClient;
 import com.example.moysklad.api.config.MoyskladProperties;
+import com.example.moysklad.api.config.StockCacheProperties;
 import com.example.moysklad.api.dto.CatalogConfigView;
 import com.example.moysklad.api.dto.CatalogFilter;
 import com.example.moysklad.api.dto.CatalogOptions;
@@ -19,6 +20,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -56,7 +58,8 @@ class CatalogFlowTest {
         assortmentCache = new AssortmentCache(client);
         productService = new ProductService(
                 assortmentCache,
-                new StockCache(client, new StockReportMapper()),
+                new StockCache(client, new StockReportMapper(),
+                        StockCacheProperties.defaults(), Clock.systemUTC()),
                 new ProductMapper());
     }
 

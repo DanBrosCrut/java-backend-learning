@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,6 +32,11 @@ public class ProductController {
      * Name of the response header reporting whether the catalog snapshot came from the in-memory cache.
      */
     public static final String CACHE_HEADER = "X-Cache";
+
+    /**
+     * Name of the request header that forces a full reload of the catalog and stock snapshots.
+     */
+    public static final String FORCE_REFRESH_HEADER = "X-Force-Refresh";
 
     private final ProductService productService;
     private final CatalogConfigService catalogConfigService;
@@ -56,17 +62,20 @@ public class ProductController {
      * @param inStockOnly whether to hide products with zero stock
      * @param sortBy      the field to sort by; empty keeps the MoySklad order
      * @param order       the sort direction: asc or desc
-     * @param page        the zero-based page index
-     * @param size        the page size (1..100)
-     * @param invalidate  whether to force a reload of the cached assortment snapshot
+     * @param page         the zero-based page index
+     * @param size         the page size (1..100)
+     * @param invalidate   whether to force a reload of the cached assortment and stock snapshots
+     * @param forceRefresh whether the {@code X-Force-Refresh} header asks for the same full reload
      * @return one configured page of products with the total number of matches and the {@code X-Cache} header
      */
     @Operation(summary = "Get product assortment",
             description = """
                     Returns a page of the product catalog with current stock levels, filtered and projected \
-                    according to the showcase options. The assortment snapshot is served from an in-memory cache: \
-                    the X-Cache response header is HIT when it came from the cache and MISS when it was reloaded \
-                    from MoySklad. Pass invalidate=true to force a reload of the cache.""")
+                    according to the showcase options. The assortment and stock snapshots are served from in-memory \
+                    caches: the X-Cache response header is HIT only when neither snapshot called MoySklad and MISS \
+                    when either was refreshed. Stock younger than 5 minutes is served without a request; older stock \
+                    is synchronized through a changedSince delta, and a full report is loaded at most every 24 hours. \
+                    Pass invalidate=true or the X-Force-Refresh: true header to force a full reload.""")
     @GetMapping
     public ResponseEntity<PagedResponse<ProductView>> getProducts(
             @Parameter(description = "Price type name, e.g. 'Цена продажи'. Empty means the first sale price", example = "Цена продажи")
@@ -88,13 +97,15 @@ public class ProductController {
             @Parameter(description = "Page size, from 1 to 100", example = "20")
             @RequestParam(defaultValue = "20") int size,
             @Parameter(description = "Drop the cached assortment and stock snapshots and reload them from MoySklad", example = "false")
-            @RequestParam(defaultValue = "false") boolean invalidate) {
+            @RequestParam(defaultValue = "false") boolean invalidate,
+            @Parameter(description = "Set to true to force the same full reload as invalidate=true", example = "false")
+            @RequestHeader(value = FORCE_REFRESH_HEADER, defaultValue = "false") boolean forceRefresh) {
         CatalogOptions options = catalogConfigService.parse(priceType, groups, fields, inStockOnly);
         CatalogFilter filter = catalogConfigService.parseFilter(q);
         SortOptions sort = catalogConfigService.parseSort(sortBy, order);
         PageOptions pageOptions = catalogConfigService.parsePage(page, size);
         CachedResult<PagedResponse<ProductView>> result =
-                productService.getProducts(options, filter, sort, pageOptions, invalidate);
+                productService.getProducts(options, filter, sort, pageOptions, invalidate || forceRefresh);
         return withCacheHeader(result);
     }
 

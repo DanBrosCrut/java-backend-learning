@@ -11,9 +11,15 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriBuilder;
 
+import java.net.URI;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -22,6 +28,9 @@ import java.util.Optional;
  * The assortment is read in pages of at most {@code moysklad.assortment-page-size} rows (1000 by default),
  * because Remap returns no more than 1000 rows per request. A single {@link #getAssortment()}
  * call returns the complete snapshot of the account catalog.
+ * <p>
+ * The current stock report can be requested in full or as a delta since a given instant; the delta request
+ * also asks for zero lines, so products whose stock dropped to zero are updated instead of being omitted.
  */
 @Component
 public class MoyskladClient {
@@ -31,6 +40,15 @@ public class MoyskladClient {
     private static final String ASSORTMENT_PATH = "/entity/assortment";
     private static final String STOCK_CURRENT_PATH = "/report/stock/all/current";
     private static final String STOCK_TYPE_STOCK = "stock";
+    private static final String INCLUDE_ZERO_LINES = "zeroLines";
+
+    /**
+     * Remap interprets {@code changedSince} in the account timezone; the integration assumes the default
+     * MoySklad timezone of Moscow.
+     */
+    private static final ZoneId MOYSKLAD_ZONE = ZoneId.of("Europe/Moscow");
+    private static final DateTimeFormatter CHANGED_SINCE_FORMAT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(MOYSKLAD_ZONE);
 
     private final RestClient restClient;
     private final int assortmentPageSize;
@@ -76,7 +94,7 @@ public class MoyskladClient {
     }
 
     /**
-     * Fetches the current stock report from the Remap 1.2 API ({@code /report/stock/all/current}).
+     * Fetches the complete current stock report from the Remap 1.2 API ({@code /report/stock/all/current}).
      * <p>
      * The {@code stockType=stock} parameter makes MoySklad return the physical stock on hand
      * (not the accumulated movements of the extended report), which is the value shown in the catalog.
@@ -85,12 +103,28 @@ public class MoyskladClient {
      * @throws MoyskladApiException when the request fails with an HTTP error (4xx or 5xx)
      */
     public List<RemapStockCurrentRow> getCurrentStocks() {
+        return fetchCurrentStocks(null);
+    }
+
+    /**
+     * Fetches only the stock rows changed since the given instant.
+     * <p>
+     * The request adds {@code changedSince} in the {@code yyyy-MM-dd HH:mm:ss} format expected by Remap
+     * (account timezone, Moscow is assumed) and {@code include=zeroLines}, so a product whose stock fell
+     * to zero is returned with {@code stock: 0} instead of disappearing from the report.
+     *
+     * @param changedSince the moment of the previous successful synchronization
+     * @return one row per changed product, including zeroed products
+     * @throws MoyskladApiException when the request fails with an HTTP error (4xx or 5xx)
+     */
+    public List<RemapStockCurrentRow> getCurrentStocks(Instant changedSince) {
+        return fetchCurrentStocks(Objects.requireNonNull(changedSince, "changedSince must not be null"));
+    }
+
+    private List<RemapStockCurrentRow> fetchCurrentStocks(Instant changedSince) {
         try {
             List<RemapStockCurrentRow> rows = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path(STOCK_CURRENT_PATH)
-                            .queryParam("stockType", STOCK_TYPE_STOCK)
-                            .build())
+                    .uri(uriBuilder -> buildCurrentStocksUri(uriBuilder, changedSince))
                     .retrieve()
                     .body(new ParameterizedTypeReference<List<RemapStockCurrentRow>>() {
                     });
@@ -100,6 +134,17 @@ public class MoyskladClient {
                     "MoySklad current stock report request failed with status " + ex.getStatusCode().value(),
                     ex);
         }
+    }
+
+    private static URI buildCurrentStocksUri(UriBuilder uriBuilder, Instant changedSince) {
+        UriBuilder builder = uriBuilder
+                .path(STOCK_CURRENT_PATH)
+                .queryParam("stockType", STOCK_TYPE_STOCK);
+        if (changedSince != null) {
+            builder.queryParam("changedSince", CHANGED_SINCE_FORMAT.format(changedSince))
+                    .queryParam("include", INCLUDE_ZERO_LINES);
+        }
+        return builder.build();
     }
 
     private List<RemapAssortmentRow> fetchAssortmentPage(int offset) {
