@@ -29,8 +29,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests for {@link StockCache}: the 5-minute TTL, the 24-hour full-sync boundary, delta merging
- * and forced refreshes.
+ * Tests for {@link StockCache}: the 5-minute TTL, the 24-hour full-sync boundary, delta merging,
+ * the full-sync fallback when a delta request fails, and forced refreshes.
  */
 @ExtendWith(MockitoExtension.class)
 class StockCacheTest {
@@ -211,23 +211,45 @@ class StockCacheTest {
     }
 
     @Test
-    void get_failedDelta_keepsPreviousSyncTimeAndNextCallRetries() {
-        when(moyskladClient.getCurrentStocks()).thenReturn(List.of(row(FIRST_PRODUCT_ID, "5")));
+    void get_failedDelta_fallsBackToFullSyncAndReplacesSnapshot() {
+        when(moyskladClient.getCurrentStocks())
+                .thenReturn(List.of(row(FIRST_PRODUCT_ID, "5"), row(SECOND_PRODUCT_ID, "2")))
+                .thenReturn(List.of(row(THIRD_PRODUCT_ID, "4")));
         when(moyskladClient.getCurrentStocks(START))
-                .thenThrow(new MoyskladApiException("delta failure"))
+                .thenThrow(new MoyskladApiException("current stock report failed with status 412"));
+
+        cache.get(false);
+        clock.advance(Duration.ofMinutes(6));
+        CachedResult<Map<String, BigDecimal>> fallback = cache.get(false);
+
+        assertThat(fallback.status()).isEqualTo(CacheStatus.MISS);
+        assertThat(fallback.body()).containsOnly(Map.entry(THIRD_PRODUCT_ID, new BigDecimal("4")));
+        verify(moyskladClient, times(2)).getCurrentStocks();
+        verify(moyskladClient, times(1)).getCurrentStocks(START);
+    }
+
+    @Test
+    void get_failedDeltaAndFailedFullFallback_keepsPreviousSnapshotAndNextCallRetries() {
+        when(moyskladClient.getCurrentStocks())
+                .thenReturn(List.of(row(FIRST_PRODUCT_ID, "5")))
+                .thenThrow(new MoyskladApiException("full report failed with status 500"))
                 .thenReturn(List.of(row(FIRST_PRODUCT_ID, "7")));
+        when(moyskladClient.getCurrentStocks(START))
+                .thenThrow(new MoyskladApiException("delta failed with status 412"));
 
         cache.get(false);
         clock.advance(Duration.ofMinutes(6));
 
         assertThatThrownBy(() -> cache.get(false))
-                .isInstanceOf(MoyskladApiException.class);
+                .isInstanceOf(MoyskladApiException.class)
+                .hasMessageContaining("500");
 
+        clock.advance(Duration.ofMinutes(6));
         CachedResult<Map<String, BigDecimal>> retried = cache.get(false);
 
         assertThat(retried.status()).isEqualTo(CacheStatus.MISS);
         assertThat(retried.body()).containsEntry(FIRST_PRODUCT_ID, new BigDecimal("7"));
-        verify(moyskladClient, times(1)).getCurrentStocks();
+        verify(moyskladClient, times(3)).getCurrentStocks();
         verify(moyskladClient, times(2)).getCurrentStocks(START);
     }
 

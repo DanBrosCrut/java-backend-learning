@@ -180,11 +180,12 @@ curl "http://localhost:8080/api/products?page=99&size=20"
 | Время с последнего обновления | Режим | Что происходит |
 |---|---|---|
 | Меньше `moysklad.stock-cache.ttl` (по умолчанию 5 минут) | HIT | Отдаётся кеш, запросов в МойСклад нет |
-| 5 минут и больше, последняя **полная** синхронизация была меньше 24 часов назад | Delta | `GET /report/stock/all/current?stockType=stock&changedSince=<время последнего обновления>&include=zeroLines`; изменения мёржатся в кеш |
+| 5 минут и больше, последняя **полная** синхронизация была меньше 24 часов назад | Delta | `GET /report/stock/all/current?stockType=stock&changedSince=<время последнего обновления>`; изменения мёржатся в кеш |
 | 24 часа и больше с последней полной синхронизации | Full | Полный отчёт без `changedSince`; кеш **заменяется** целиком |
 
 - `changedSince` передаётся в формате `yyyy-MM-dd HH:mm:ss` в таймзоне МойСклад (`Europe/Moscow`).
-- `include=zeroLines` нужен, чтобы товар, остаток которого упал до нуля, вернулся строкой `stock: 0` и обновил кеш, а не исчез из дельты.
+- `include=zeroLines` **не передаётся** вместе с `changedSince`: Remap отклоняет такую комбинацию с `412` (код `1034`). Обнулённые остатки приходят в дельте сами.
+- Если delta-запрос падает по любой причине (`412`, `400`, `5xx`, сеть), в лог пишется `Delta fetch failed, falling back to full sync`, и сразу выполняется полный отчёт, который **заменяет** снапшот целиком.
 - Пороги настраиваются свойствами `moysklad.stock-cache.ttl` (по умолчанию `PT5M`) и `moysklad.stock-cache.full-sync-interval` (по умолчанию `PT24H`).
 - **Принудительный полный refresh:** `?invalidate=true` или заголовок `X-Force-Refresh: true`. Они сбрасывают кеш ассортимента и остатков и загружают полный отчёт независимо от порогов.
 
@@ -199,6 +200,7 @@ curl "http://localhost:8080/api/products?page=99&size=20"
 - `Current stock cache HIT: N product(s)`;
 - `Current stock cache MISS (full): N product(s)`;
 - `Current stock cache MISS (delta since <instant>): N changed product(s), M product(s) in total`;
+- `Delta fetch failed, falling back to full sync` — delta не удалась, выполняется полный отчёт;
 - сброс кеша пишется отдельной строкой.
 
 Остатки берутся из **`/report/stock/all/current`** (`stockType=stock`) — это фактический остаток на складе, а не накопительный отчёт.

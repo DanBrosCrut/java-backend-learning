@@ -7,6 +7,7 @@ import com.example.moysklad.api.config.MoyskladProperties;
 import com.example.moysklad.api.exception.MoyskladApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -18,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 /**
@@ -137,10 +139,10 @@ class MoyskladClientTest {
     }
 
     @Test
-    void getCurrentStocks_changedSince_requestsDeltaInMoscowTimeWithZeroLines() {
+    void getCurrentStocks_changedSince_requestsDeltaInMoscowTimeWithoutZeroLines() {
         server.expect(requestTo(BASE_URL
                         + "/report/stock/all/current?stockType=stock"
-                        + "&changedSince=2026-11-10%2000:30:00&include=zeroLines"))
+                        + "&changedSince=2026-11-10%2000:30:00"))
                 .andRespond(withSuccess("""
                         [{"assortmentId":"1","stock":0}]
                         """, MediaType.APPLICATION_JSON));
@@ -157,7 +159,7 @@ class MoyskladClientTest {
     void getCurrentStocks_deltaServerError_throwsMoyskladApiException() {
         server.expect(requestTo(BASE_URL
                         + "/report/stock/all/current?stockType=stock"
-                        + "&changedSince=2026-11-09%2013:15:00&include=zeroLines"))
+                        + "&changedSince=2026-11-09%2013:15:00"))
                 .andRespond(withServerError());
 
         MoyskladClient client = client(1000);
@@ -166,6 +168,27 @@ class MoyskladClientTest {
         assertThatThrownBy(() -> client.getCurrentStocks(changedSince))
                 .isInstanceOf(MoyskladApiException.class)
                 .hasMessageContaining("500");
+    }
+
+    @Test
+    void getCurrentStocks_deltaRejectedWith412_includesMoySkladErrorDetails() {
+        server.expect(requestTo(BASE_URL
+                        + "/report/stock/all/current?stockType=stock"
+                        + "&changedSince=2026-11-09%2013:15:00"))
+                .andRespond(withStatus(HttpStatus.PRECONDITION_FAILED)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("""
+                                {"errors":[{"code":1034,"message":"parameter changedSince cannot be used together with include=zeroLines"}]}
+                                """));
+
+        MoyskladClient client = client(1000);
+        Instant changedSince = Instant.parse("2026-11-09T10:15:00Z");
+
+        assertThatThrownBy(() -> client.getCurrentStocks(changedSince))
+                .isInstanceOf(MoyskladApiException.class)
+                .hasMessageContaining("412")
+                .hasMessageContaining("1034")
+                .hasMessageContaining("changedSince");
     }
 
     @Test

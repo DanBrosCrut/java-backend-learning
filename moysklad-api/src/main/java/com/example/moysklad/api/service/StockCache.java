@@ -27,7 +27,9 @@ import java.util.Map;
  *     replaces the snapshot.</li>
  * </ul>
  * A forced refresh always performs a full report, bypassing both time thresholds.
- * Failed loads leave the previous snapshot untouched, so the next lookup retries instead of caching an error.
+ * When a delta request fails for any reason, the cache logs a warning and falls back to a full sync,
+ * replacing the snapshot entirely. Failed full loads leave the previous snapshot untouched, so the next
+ * lookup retries instead of caching an error.
  */
 @Component
 public class StockCache {
@@ -111,15 +113,20 @@ public class StockCache {
 
     private Snapshot loadDelta() {
         Instant changedSince = snapshot.lastUpdate();
-        Map<String, BigDecimal> changes =
-                stockReportMapper.toStockMap(moyskladClient.getCurrentStocks(changedSince));
-        Map<String, BigDecimal> merged = new HashMap<>(snapshot.stocks());
-        merged.putAll(changes);
-        Map<String, BigDecimal> stocks = Map.copyOf(merged);
-        Instant loadedAt = clock.instant();
-        log.info("Current stock cache MISS (delta since {}): {} changed product(s), {} product(s) in total",
-                changedSince, changes.size(), stocks.size());
-        return new Snapshot(stocks, snapshot.lastFullSync(), loadedAt);
+        try {
+            Map<String, BigDecimal> changes =
+                    stockReportMapper.toStockMap(moyskladClient.getCurrentStocks(changedSince));
+            Map<String, BigDecimal> merged = new HashMap<>(snapshot.stocks());
+            merged.putAll(changes);
+            Map<String, BigDecimal> stocks = Map.copyOf(merged);
+            Instant loadedAt = clock.instant();
+            log.info("Current stock cache MISS (delta since {}): {} changed product(s), {} product(s) in total",
+                    changedSince, changes.size(), stocks.size());
+            return new Snapshot(stocks, snapshot.lastFullSync(), loadedAt);
+        } catch (RuntimeException ex) {
+            log.warn("Delta fetch failed, falling back to full sync: {}", ex.getMessage());
+            return loadFull();
+        }
     }
 
     private record Snapshot(Map<String, BigDecimal> stocks, Instant lastFullSync, Instant lastUpdate) {
