@@ -29,8 +29,9 @@ import java.util.Optional;
  * because Remap returns no more than 1000 rows per request. A single {@link #getAssortment()}
  * call returns the complete snapshot of the account catalog.
  * <p>
- * The current stock report can be requested in full or as a delta since a given instant; the delta request
- * also asks for zero lines, so products whose stock dropped to zero are updated instead of being omitted.
+ * The current stock report can be requested in full or as a delta since a given instant. Remap rejects
+ * {@code changedSince} together with {@code include=zeroLines}, so the delta request only sends
+ * {@code changedSince}; zeroed products are already part of those changes.
  */
 @Component
 public class MoyskladClient {
@@ -40,7 +41,6 @@ public class MoyskladClient {
     private static final String ASSORTMENT_PATH = "/entity/assortment";
     private static final String STOCK_CURRENT_PATH = "/report/stock/all/current";
     private static final String STOCK_TYPE_STOCK = "stock";
-    private static final String INCLUDE_ZERO_LINES = "zeroLines";
 
     /**
      * Remap interprets {@code changedSince} in the account timezone; the integration assumes the default
@@ -110,11 +110,12 @@ public class MoyskladClient {
      * Fetches only the stock rows changed since the given instant.
      * <p>
      * The request adds {@code changedSince} in the {@code yyyy-MM-dd HH:mm:ss} format expected by Remap
-     * (account timezone, Moscow is assumed) and {@code include=zeroLines}, so a product whose stock fell
-     * to zero is returned with {@code stock: 0} instead of disappearing from the report.
+     * (account timezone, Moscow is assumed). Remap rejects {@code changedSince} together with
+     * {@code include=zeroLines} (error 1034), so the delta request does not send {@code include};
+     * zeroed products are already returned as changes.
      *
      * @param changedSince the moment of the previous successful synchronization
-     * @return one row per changed product, including zeroed products
+     * @return one row per changed product
      * @throws MoyskladApiException when the request fails with an HTTP error (4xx or 5xx)
      */
     public List<RemapStockCurrentRow> getCurrentStocks(Instant changedSince) {
@@ -130,10 +131,24 @@ public class MoyskladClient {
                     });
             return Optional.ofNullable(rows).orElse(List.of());
         } catch (HttpStatusCodeException ex) {
-            throw new MoyskladApiException(
-                    "MoySklad current stock report request failed with status " + ex.getStatusCode().value(),
-                    ex);
+            throw currentStocksException(ex, changedSince);
         }
+    }
+
+    private static MoyskladApiException currentStocksException(HttpStatusCodeException ex, Instant changedSince) {
+        String details = errorDetails(ex);
+        log.error("MoySklad current stock report request failed with status {} (changedSince={}): {}",
+                ex.getStatusCode().value(), changedSince, details);
+        return new MoyskladApiException(
+                "MoySklad current stock report request failed with status "
+                        + ex.getStatusCode().value() + ": " + details,
+                ex);
+    }
+
+    private static String errorDetails(HttpStatusCodeException ex) {
+        return Optional.ofNullable(ex.getResponseBodyAsString())
+                .filter(body -> !body.isBlank())
+                .orElse("no response body");
     }
 
     private static URI buildCurrentStocksUri(UriBuilder uriBuilder, Instant changedSince) {
@@ -141,8 +156,7 @@ public class MoyskladClient {
                 .path(STOCK_CURRENT_PATH)
                 .queryParam("stockType", STOCK_TYPE_STOCK);
         if (changedSince != null) {
-            builder.queryParam("changedSince", CHANGED_SINCE_FORMAT.format(changedSince))
-                    .queryParam("include", INCLUDE_ZERO_LINES);
+            builder.queryParam("changedSince", CHANGED_SINCE_FORMAT.format(changedSince));
         }
         return builder.build();
     }
@@ -163,9 +177,12 @@ public class MoyskladClient {
                     .map(List::copyOf)
                     .orElse(List.of());
         } catch (HttpStatusCodeException ex) {
+            String details = errorDetails(ex);
+            log.error("MoySklad assortment request failed with status {} at offset {}: {}",
+                    ex.getStatusCode().value(), offset, details);
             throw new MoyskladApiException(
                     "MoySklad assortment request failed with status " + ex.getStatusCode().value()
-                            + " at offset " + offset,
+                            + " at offset " + offset + ": " + details,
                     ex);
         }
     }
