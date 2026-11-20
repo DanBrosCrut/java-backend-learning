@@ -28,3 +28,9 @@ moysklad:
   base-url: https://api.moysklad.ru/api/remap/1.2
   # Remap returns at most 1000 rows per request; the client reads the catalog page by page.
   assortment-page-size: 1000
+
+# --- File-based cart ---
+app:
+  cart:
+    # Runtime cart storage, relative to the application working directory.
+    file: data/cart.json
