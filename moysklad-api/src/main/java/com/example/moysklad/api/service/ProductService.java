@@ -55,7 +55,7 @@ public class ProductService {
      * @param filter the free-text filter matched against name and article
      * @param sort the sorting of the resulting page; {@code null} means the natural order
      * @param pageOptions the pagination parameters
-     * @return one page of products plus the cache status of the assortment lookup
+     * @return one page of products plus the combined cache status of the assortment and stock lookups
      */
     public CachedResult<PagedResponse<ProductView>> getProducts(CatalogOptions options,
                                                                 CatalogFilter filter,
@@ -78,7 +78,7 @@ public class ProductService {
      * @param pageOptions the pagination parameters
      * @param invalidate whether to drop the cached assortment snapshot before reading it
      * @return one page of products matching the options and filter, sorted as requested,
-     *         with the total number of matches, plus the cache status of the assortment lookup
+     *         with the total number of matches, plus the combined cache status of the assortment and stock lookups
      * @throws InvalidCatalogOptionException when the requested price type does not exist in the assortment
      */
     public CachedResult<PagedResponse<ProductView>> getProducts(CatalogOptions options,
@@ -89,7 +89,8 @@ public class ProductService {
         CatalogOptions effective = Optional.ofNullable(options).orElseGet(CatalogOptions::defaults);
         CatalogFilter effectiveFilter = Optional.ofNullable(filter).orElseGet(CatalogFilter::none);
         SortOptions effectiveSort = Optional.ofNullable(sort).orElseGet(SortOptions::natural);
-        Map<String, BigDecimal> stocks = stockCache.get(invalidate).body();
+        CachedResult<Map<String, BigDecimal>> stockResult = stockCache.get(invalidate);
+        Map<String, BigDecimal> stocks = stockResult.body();
         CachedResult<RemapAssortmentResponse> assortment = assortmentCache.get(invalidate);
         List<RemapAssortmentRow> rows = Optional.ofNullable(assortment.body().rows())
                 .orElse(List.of());
@@ -105,7 +106,7 @@ public class ProductService {
 
         return new CachedResult<>(
                 PagedResponse.of(products, pageOptions.page(), pageOptions.size()),
-                assortment.status());
+                CacheStatus.combine(assortment.status(), stockResult.status()));
     }
 
     private static boolean matchesQuery(RemapAssortmentRow row, CatalogFilter filter) {
