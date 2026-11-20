@@ -38,6 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ProductControllerTest {
 
     private static final String CACHE_HEADER = "X-Cache";
+    private static final String FORCE_REFRESH_HEADER = "X-Force-Refresh";
 
     @Mock
     private ProductService productService;
@@ -85,6 +86,19 @@ class ProductControllerTest {
                 .thenReturn(new CachedResult<>(pageOf(product()), CacheStatus.MISS));
 
         mockMvc.perform(get("/api/products").param("invalidate", "true"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(CACHE_HEADER, "MISS"));
+
+        verify(productService).getProducts(any(), any(), any(), any(), eq(true));
+    }
+
+    @Test
+    void getProducts_forceRefreshHeader_isPassedToTheService() throws Exception {
+        givenParsedOptions();
+        when(productService.getProducts(any(), any(), any(), any(), eq(true)))
+                .thenReturn(new CachedResult<>(pageOf(product()), CacheStatus.MISS));
+
+        mockMvc.perform(get("/api/products").header(FORCE_REFRESH_HEADER, "true"))
                 .andExpect(status().isOk())
                 .andExpect(header().string(CACHE_HEADER, "MISS"));
 

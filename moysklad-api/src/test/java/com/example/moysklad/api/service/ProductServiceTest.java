@@ -6,6 +6,7 @@ import com.example.moysklad.api.client.dto.RemapAssortmentRow;
 import com.example.moysklad.api.client.dto.RemapPriceType;
 import com.example.moysklad.api.client.dto.RemapSalePrice;
 import com.example.moysklad.api.client.dto.RemapStockCurrentRow;
+import com.example.moysklad.api.config.StockCacheProperties;
 import com.example.moysklad.api.dto.CatalogField;
 import com.example.moysklad.api.dto.CatalogFilter;
 import com.example.moysklad.api.dto.CatalogOptions;
@@ -24,6 +25,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,8 +58,21 @@ class ProductServiceTest {
     void setUp() {
         productService = new ProductService(
                 new AssortmentCache(moyskladClient),
-                new StockCache(moyskladClient, new StockReportMapper()),
+                new StockCache(moyskladClient, new StockReportMapper(), StockCacheProperties.defaults(), Clock.systemUTC()),
                 new ProductMapper());
+    }
+
+    @Test
+    void getProducts_cacheStatus_reportsHitOnlyWhenAssortmentAndStockAreCached() {
+        givenAssortment(product(PRODUCT_ID, "Widget", "ART-1", GROUPS, "100000"));
+
+        CachedResult<PagedResponse<ProductView>> first = productService.getProducts(
+                CatalogOptions.defaults(), CatalogFilter.none(), NATURAL_SORT, FIRST_PAGE);
+        CachedResult<PagedResponse<ProductView>> second = productService.getProducts(
+                CatalogOptions.defaults(), CatalogFilter.none(), NATURAL_SORT, FIRST_PAGE);
+
+        assertThat(first.status()).isEqualTo(CacheStatus.MISS);
+        assertThat(second.status()).isEqualTo(CacheStatus.HIT);
     }
 
     @Test
