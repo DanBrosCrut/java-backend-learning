@@ -6,6 +6,7 @@ import com.example.moysklad.api.client.dto.RemapAssortmentRow;
 import com.example.moysklad.api.client.dto.RemapPriceType;
 import com.example.moysklad.api.client.dto.RemapSalePrice;
 import com.example.moysklad.api.client.dto.RemapStockCurrentRow;
+import com.example.moysklad.api.config.StockCacheProperties;
 import com.example.moysklad.api.dto.OrderValidationRequest;
 import com.example.moysklad.api.dto.OrderValidationResponse;
 import com.example.moysklad.api.dto.OrderValidationResponse.AlternativeProduct;
@@ -19,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,7 +46,11 @@ class OrderValidationServiceTest {
 
     @BeforeEach
     void setUp() {
-        StockCache stockCache = new StockCache(moyskladClient, new StockReportMapper());
+        StockCache stockCache = new StockCache(
+                moyskladClient,
+                new StockReportMapper(),
+                StockCacheProperties.defaults(),
+                Clock.systemUTC());
         AssortmentCache assortmentCache = new AssortmentCache(moyskladClient);
         service = new OrderValidationService(
                 new AvailabilityService(stockCache),
