@@ -19,7 +19,18 @@ Stack: Java 21 LTS, Spring Boot 4.x, Maven.
 - **Database**: No database in the service — all data comes from the MoySklad API.
 - **Packages**: `controller/`, `service/`, `client/`, `dto/`, `config/`.
 
-## 4. Code Style & Java 21 Features
+## 4. SRP & Spring Boot Checklist
+- **One class = one responsibility**: Controllers only route (validate input, delegate to services); Services hold all business logic; Clients handle external HTTP and raw JSON; Exception handlers only handle exceptions. Never mix these concerns.
+- **No error handling in controllers**: NEVER write try-catch inside a controller. Throw domain exceptions and let `@RestControllerAdvice` (`GlobalExceptionHandler`) map them to `ErrorResponse` with the correct HTTP status.
+- **Specific exceptions**: Each failure mode gets its own exception (e.g., `CartItemNotFoundException`) instead of generic `RuntimeException` or null/flag returns.
+- **Fallbacks only where graceful recovery is possible**: implement a fallback ONLY when the system can recover by itself (e.g., a network timeout, or delta → full stock sync). Do not over-engineer with retries, circuit breakers, or hidden fallbacks unless the task explicitly requires them.
+- **Spring Boot Checklist** (apply to every change):
+  - Controller: `@RestController`, thin, delegates, no business logic, no try-catch.
+  - Service: `@Service`, business rules, throws specific exceptions, transactional if needed.
+  - Exception handler: only `@ExceptionHandler` methods returning `ResponseEntity<ErrorResponse>`.
+  - DTO: records with Jakarta validation annotations (`@NotBlank`, `@Min`, `@NotEmpty`) — validation errors become `400 VALIDATION_ERROR`.
+
+## 5. Code Style & Java 21 Features
 - **Java 21**: Use Records for DTOs, switch expressions, and text blocks.
 - **Constructor Injection**: Only use constructor injection. NEVER use `@Autowired` on fields.
 - **Javadoc**: Required on all public methods.
@@ -28,43 +39,43 @@ Stack: Java 21 LTS, Spring Boot 4.x, Maven.
 - **Lambdas**: Prefer method references (`ProductView::id`) over verbose lambdas. Keep lambdas short.
 - **Null Checks**: Use `Optional.ofNullable()` and `.orElseThrow()` instead of verbose `if (x != null)` blocks.
 
-## 5. Naming Conventions
+## 6. Naming Conventions
 - **Speaking Names for DTOs**: 
   - Input models: end with `...Request` (e.g., `AvailabilityRequest`).
   - Output models: end with `...Response` or `...View` (e.g., `ProductView`, `OrderResponse`).
   - Remap API wrappers: end with `...RemapDto` (e.g., `StockRemapDto`).
 - **Consistency**: PascalCase for classes/records, camelCase for methods/variables, UPPER_SNAKE_CASE for constants.
 
-## 6. Money & Financial Calculations (BigDecimal)
+## 7. Money & Financial Calculations (BigDecimal)
 - **No Floats**: NEVER use `double` or `float` for money.
 - **BigDecimal**: Use `java.math.BigDecimal` for all prices, totals, and currency values.
 - **String Constructor**: Always create from String (`new BigDecimal("100.50")`) to avoid floating-point errors.
 - **Equality**: Compare using `.compareTo() == 0`, never `.equals()` (which checks scale).
 - **Arithmetic**: Use `.add()`, `.subtract()`, `.multiply()`, `.divide()` with explicit `RoundingMode`.
 
-## 7. Error Handling & Logging
+## 8. Error Handling & Logging
 - **Global Exception Handler**: Use `@RestControllerAdvice` for centralized error handling. Never let a raw stack trace reach the client.
 - **Error Responses**: Return a structured `ErrorResponse` record with `code` and `message` fields.
 - **HTTP Statuses**: Use appropriate codes (400 for validation, 404 for not found, 409 for conflict, 502 for upstream Moysklad errors).
 - **Logging**: Use SLF4J (`LoggerFactory.getLogger`). NEVER use `System.out.println`. 
 - **No Sensitive Data**: Never log tokens, passwords, or raw `MOYSKLAD_TOKEN` values.
 
-## 8. Testing Standards
+## 9. Testing Standards
 - **Frameworks**: Use JUnit 5 and Mockito.
 - **Mocking**: Mock external dependencies (e.g., `MoyskladClient`) using `@Mock` and `@InjectMocks`.
 - **Coverage**: Always write tests for happy paths AND edge cases (e.g., empty lists, missing products, insufficient stock).
 - **Naming**: Test methods must be descriptive, e.g., `shouldReturnAvailableTrue_whenStockIsSufficient()`.
 
-## 9. API Documentation (Swagger)
+## 10. API Documentation (Swagger)
 - **Annotations**: Every new controller and endpoint MUST have `@Tag` (class level) and `@Operation` (method level) with a clear `summary` and `description`.
 - **DTO Schemas**: Use `@Schema(description = "...")` on record fields to document their meaning for the API client.
 
-## 10. MCP Usage (GitHub)
+## 11. MCP Usage (GitHub)
 - **Creating PRs**: Always use the GitHub MCP tool to create Pull Requests. Do not use raw `gh` CLI or `curl` if MCP is available.
 - **Checking Issues**: Use MCP to read the description and Acceptance Criteria of the Issue before starting work.
 - **Review comments**: If asked to fix a review, read the PR comments via MCP.
 
-## 11. Git Workflow (Strict)
+## 12. Git Workflow (Strict)
 - **One task = one branch = one PR**: NEVER commit multiple unrelated tasks into a single branch. Always create a new branch for each task from `main`.
 - **Branch names**: `feature/`, `fix/`, `docs/`, `chore/`. No ambiguous names.
 - **Commit format**: Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`).
@@ -74,7 +85,7 @@ Stack: Java 21 LTS, Spring Boot 4.x, Maven.
 - **Pre-commit**: Run `mvn test` before committing.
 - **Cherry-picking**: If you accidentally committed to the wrong branch, use `git cherry-pick <hash>` to move it; never use destructive commands.
 
-## 12. CRITICAL SECURITY RULES
+## 13. CRITICAL SECURITY RULES
 ### FORBIDDEN
 - NEVER commit files: `.env`, `*.env`, `application-secrets.*`
 - NEVER print token values in chat, logs, or comments
@@ -95,7 +106,7 @@ Stack: Java 21 LTS, Spring Boot 4.x, Maven.
 3. Notify the user
 4. The token must be revoked and recreated
 
-## 13. Documentation Links
+## 14. Documentation Links
 - MoySklad Remap 1.2: https://dev.moysklad.ru/doc/api/remap/1.2/
 - Product vision: `docs/product.md`
 - Backlog: `docs/backlog.md`
