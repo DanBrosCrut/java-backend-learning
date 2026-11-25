@@ -22,7 +22,7 @@ Stack: Java 21 LTS, Spring Boot 4.x, Maven.
 ## 4. SRP & Spring Boot Checklist
 - **One class = one responsibility**: Controllers only route (validate input, delegate to services); Services hold all business logic; Clients handle external HTTP and raw JSON; Exception handlers only handle exceptions. Never mix these concerns.
 - **No error handling in controllers**: NEVER write try-catch inside a controller. Throw domain exceptions and let `@RestControllerAdvice` (`GlobalExceptionHandler`) map them to `ErrorResponse` with the correct HTTP status.
-- **Specific exceptions**: Each failure mode gets its own exception (e.g., `CartItemNotFoundException`) instead of generic `RuntimeException` or null/flag returns.
+- **Specific exceptions**: Each failure mode gets its own exception (e.g., `OrderValidationFailedException`) instead of generic `RuntimeException` or null/flag returns.
 - **Fallbacks only where graceful recovery is possible**: implement a fallback ONLY when the system can recover by itself (e.g., a network timeout, or delta → full stock sync). Do not over-engineer with retries, circuit breakers, or hidden fallbacks unless the task explicitly requires them.
 - **Spring Boot Checklist** (apply to every change):
   - Controller: `@RestController`, thin, delegates, no business logic, no try-catch.

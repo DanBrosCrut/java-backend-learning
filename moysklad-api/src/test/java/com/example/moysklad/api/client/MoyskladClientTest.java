@@ -2,21 +2,28 @@ package com.example.moysklad.api.client;
 
 import com.example.moysklad.api.client.dto.RemapAssortmentResponse;
 import com.example.moysklad.api.client.dto.RemapAssortmentRow;
+import com.example.moysklad.api.client.dto.RemapCustomerOrderDto;
+import com.example.moysklad.api.client.dto.RemapCustomerOrderResponseDto;
+import com.example.moysklad.api.client.dto.RemapMetaDto;
+import com.example.moysklad.api.client.dto.RemapOrderPositionDto;
 import com.example.moysklad.api.client.dto.RemapStockCurrentRow;
 import com.example.moysklad.api.config.MoyskladProperties;
 import com.example.moysklad.api.exception.MoyskladApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -189,6 +196,51 @@ class MoyskladClientTest {
                 .hasMessageContaining("412")
                 .hasMessageContaining("1034")
                 .hasMessageContaining("changedSince");
+    }
+
+    @Test
+    void createCustomerOrder_postsPayloadAndReturnsCreatedOrder() {
+        server.expect(requestTo(BASE_URL + "/entity/customerorder"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("""
+                        {"id":"order-1","name":"00001","sum":1000.0}
+                        """, MediaType.APPLICATION_JSON));
+
+        RemapCustomerOrderDto payload = new RemapCustomerOrderDto(
+                new RemapMetaDto(BASE_URL + "/entity/organization/org-1", "organization", "application/json"),
+                new RemapMetaDto(BASE_URL + "/entity/counterparty/agent-1", "counterparty", "application/json"),
+                List.of(new RemapOrderPositionDto(
+                        new BigDecimal("2"),
+                        new BigDecimal("500.00"),
+                        new RemapMetaDto(BASE_URL + "/entity/product/p-1", "product", "application/json"))));
+
+        RemapCustomerOrderResponseDto created = client(1000).createCustomerOrder(payload);
+
+        assertThat(created.id()).isEqualTo("order-1");
+        assertThat(created.name()).isEqualTo("00001");
+        assertThat(created.sum()).isEqualByComparingTo("1000.0");
+        server.verify();
+    }
+
+    @Test
+    void createCustomerOrder_httpError_throwsMoyskladApiExceptionWithDetails() {
+        server.expect(requestTo(BASE_URL + "/entity/customerorder"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("""
+                                {"errors":[{"code":3004,"message":"bad request"}]}
+                                """));
+
+        RemapCustomerOrderDto payload = new RemapCustomerOrderDto(
+                new RemapMetaDto(BASE_URL + "/entity/organization/org-1", "organization", "application/json"),
+                new RemapMetaDto(BASE_URL + "/entity/counterparty/agent-1", "counterparty", "application/json"),
+                List.of());
+
+        assertThatThrownBy(() -> client(1000).createCustomerOrder(payload))
+                .isInstanceOf(MoyskladApiException.class)
+                .hasMessageContaining("400")
+                .hasMessageContaining("3004");
     }
 
     @Test
