@@ -394,6 +394,13 @@ MOYSKLAD_TOKEN=ваш_токен_без_кавычек
 - Токен нельзя коммитить, логировать и вставлять в код. Проверка: `git check-ignore -v .env`.
 
 
+## MCP-сервер
+
+Отдельное приложение `mcp-server/` (Python + FastMCP) — MCP-обёртка над REST API без
+бизнес-логики: инструменты каталога, остатков и заказов (`get_catalog`, `get_config`,
+`check_availability`, `validate_order`, `create_order`). Запуск и список инструментов —
+в [mcp-server/README.md](mcp-server/README.md).
+
 ## Полезные ссылки
 
 - Репозиторий: https://github.com/<твой-username>/java-backend-learning
