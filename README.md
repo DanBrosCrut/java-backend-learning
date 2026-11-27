@@ -7,17 +7,24 @@
 ```
 java-backend-learning/
 ├── README.md                    ← запуск, env, API
-├── REPORT.md                    ← отчёт по проекту (спринты 1–5)
+├── REPORT.md                    ← исторический отчёт (спринты 1–5)
 ├── AGENTS.md                    ← инструкции для AI-агента
 ├── docs/                        ← документация проекта
 │   ├── vision.md                ← видение продукта
 │   ├── backlog.md               ← Product Backlog
-│   ├── product.md               ← описание продукта
+│   ├── test-plan.md             ← план и матрица тестов API
+│   ├── sprint-2.md              ← архив: план Sprint 2
 │   ├── agile-scrum.md           ← Agile/Scrum
 │   ├── git-workflow.md          ← Git workflow
 │   ├── environment.md           ← окружение
-│   ├── moysklad.md              ← МойСклад API
-│   └── semver.md                ← версионирование
+│   ├── moysklad.md              ← справочник Remap 1.2
+│   ├── semver.md                ← версионирование (SemVer)
+│   └── screenshots/
+│       └── sprint-7/            ← скриншоты прогона Sprint 7
+├── mcp-server/                  ← MCP-обёртка над REST (Python + FastMCP)
+│   ├── server.py
+│   ├── requirements.txt
+│   └── README.md
 └── moysklad-api/                ← Spring Boot приложение
     ├── pom.xml
     ├── mvnw / mvnw.cmd          ← Maven Wrapper
@@ -303,7 +310,7 @@ curl -X POST "http://localhost:8080/api/orders" \
 }
 ```
 
-Коды: `INVALID_CATALOG_OPTION`, `INVALID_PAGINATION`, `VALIDATION_ERROR` (400), `ORDER_VALIDATION_FAILED` (409), `INTERNAL_ERROR`, `ORDER_CONFIGURATION_ERROR` (500), `MOYSKLAD_ERROR` (502).
+Коды: `INVALID_CATALOG_OPTION`, `INVALID_PAGINATION`, `VALIDATION_ERROR` (400), `NOT_FOUND` (404), `ORDER_VALIDATION_FAILED` (409), `INTERNAL_ERROR`, `ORDER_CONFIGURATION_ERROR` (500), `MOYSKLAD_ERROR` (502).
 
 ## Конфигурация
 
@@ -339,7 +346,7 @@ moysklad:
 - **Maven** 3.9.x + Maven Wrapper
 - **Apache Tomcat** (embedded)
 - **springdoc-openapi** — Swagger UI
-- **JUnit 5 + Mockito + AssertJ** — тесты сервисного слоя
+- **JUnit 5 + Mockito + AssertJ** — тесты controller/service/client/mapper слоёв
 - **МойСклад Remap 1.2** — источник данных (без собственной БД)
 
 ## Документация, которую использовал
@@ -353,7 +360,8 @@ moysklad:
 
 ## Отчёт по проекту
 
-Кратко по спринтам и текущий статус — в [REPORT.md](REPORT.md).
+Исторический отчёт за Sprint 1–5 — в [REPORT.md](REPORT.md). Актуальное состояние —
+README, [docs/test-plan.md](docs/test-plan.md) и [docs/backlog.md](docs/backlog.md).
 
 ## Переменные окружения
 
@@ -389,7 +397,7 @@ ID берутся из МойСклад: организация — `/entity/org
 
 ## Полезные ссылки
 
-- Репозиторий: https://github.com/<твой-username>/java-backend-learning
+- Репозиторий: https://github.com/DanBrosCrut/java-backend-learning
 - МойСклад: https://www.moysklad.ru/
 - МойСклад API: https://dev.moysklad.ru/
 - Scrum Guide: https://scrumguides.org/

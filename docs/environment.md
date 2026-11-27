@@ -20,8 +20,8 @@ OpenJDK 64-Bit Server VM Temurin-21.0.10+8 (build 21.0.10+8-LTS-217, mixed mode,
 Установлен **Apache Maven 3.9.10** через SDKMAN.
 $ mvn -version
 Apache Maven 3.9.10 (5f519b97e944483d878815739f519b2eade0a91d)
-Maven home: C:\Users\Home.sdkman\candidates\maven\current
-Java version: 21.0.2, vendor: Eclipse Adoptium, runtime: C:\Users\Home.sdkman\candidates\java\current
+Maven home: C:\Users\Home\.sdkman\candidates\maven\current
+Java version: 21.0.2, vendor: Eclipse Adoptium, runtime: C:\Users\Home\.sdkman\candidates\java\current
 Default locale: ru_RU, platform encoding: UTF-8
 OS name: "windows 11", version: "10.0", arch: "amd64", family: "windows"
 
@@ -54,3 +54,4 @@ OS name: "windows 11", version: "10.0", arch: "amd64", family: "windows"
 {
   "maven.executable.path": "C:/Users/Home/.sdkman/candidates/maven/current/bin/mvn.cmd"
 }
+```
