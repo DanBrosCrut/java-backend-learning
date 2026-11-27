@@ -60,6 +60,16 @@ class OrderValidationServiceTest {
     }
 
     @Test
+    void shouldReturnValid_whenPositionsAreEmpty() {
+        when(moyskladClient.getCurrentStocks()).thenReturn(List.of());
+
+        OrderValidationResponse response = service.validate(request());
+
+        assertThat(response.valid()).isTrue();
+        assertThat(response.errors()).isEmpty();
+    }
+
+    @Test
     void shouldReturnValid_whenAllPositionsAreInStock() {
         when(moyskladClient.getCurrentStocks()).thenReturn(List.of(stock(REQUESTED_ID, "5")));
 
