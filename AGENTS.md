@@ -6,18 +6,20 @@ The service reads assortment from MoySklad JSON API (Remap 1.2) and exposes it v
 Stack: Java 21 LTS, Spring Boot 4.x, Maven.
 
 ## 2. Setup Commands
-- Build: `mvn clean package`
-- Run tests: `mvn test`
+All commands run inside `moysklad-api/`. Maven Wrapper is bundled there (`mvnw` / `mvnw.cmd`).
+- Go to the module: `cd moysklad-api`
+- Build: `mvn clean package` (or `.\mvnw.cmd clean package` on Windows)
+- Run tests: `mvn test` (or `.\mvnw.cmd test`)
 - Run single test: `mvn test -Dtest=ClassName`
-- Run app: `mvn spring-boot:run`
+- Run app: `mvn spring-boot:run` (or `.\mvnw.cmd spring-boot:run`)
 
 ## 3. Architecture & Layering
-- **Controllers**: Must be thin. Validate input and delegate to services. Use `HealthController` → `/health`, `ProductController` → `/api/products`.
+- **Controllers**: Must be thin. Validate input and delegate to services. Use `HealthController` → `/health`, `ProductController` → `/api/products`, `AvailabilityController` → `/api/availability`, `OrderController` → `/api/orders`.
 - **Services**: Contain all business logic. Use functional programming.
-- **Clients**: Handle external HTTP calls and raw JSON parsing (e.g., `MoyskladClient` calls Remap 1.2 `/entity/assortment`).
+- **Clients**: Handle external HTTP calls and raw JSON parsing (e.g., `MoyskladClient` calls Remap 1.2 `/entity/assortment`, `/report/stock/all/current` and `/entity/customerorder`).
 - **DTOs**: Use separate records for external API (Remap) and internal API (our REST). Map between them in the service layer.
 - **Database**: No database in the service — all data comes from the MoySklad API.
-- **Packages**: `controller/`, `service/`, `client/`, `dto/`, `config/`.
+- **Packages**: `controller/`, `service/`, `client/`, `dto/`, `config/`, `exception/`, `mapper/`.
 
 ## 4. SRP & Spring Boot Checklist
 - **One class = one responsibility**: Controllers only route (validate input, delegate to services); Services hold all business logic; Clients handle external HTTP and raw JSON; Exception handlers only handle exceptions. Never mix these concerns.
@@ -41,9 +43,9 @@ Stack: Java 21 LTS, Spring Boot 4.x, Maven.
 
 ## 6. Naming Conventions
 - **Speaking Names for DTOs**: 
-  - Input models: end with `...Request` (e.g., `AvailabilityRequest`).
+  - Input models: end with `...Request` (e.g., `AvailabilityCheckRequest`).
   - Output models: end with `...Response` or `...View` (e.g., `ProductView`, `OrderResponse`).
-  - Remap API wrappers: end with `...RemapDto` (e.g., `StockRemapDto`).
+  - Remap API wrappers: end with `...RemapDto` (e.g., `StockRemapDto`); client-side Remap records are named `Remap*Dto` / `Remap*` matching the record they wrap (e.g., `RemapStockCurrentRow` for a `/report/stock/all/current` row).
 - **Consistency**: PascalCase for classes/records, camelCase for methods/variables, UPPER_SNAKE_CASE for constants.
 
 ## 7. Money & Financial Calculations (BigDecimal)
@@ -108,5 +110,6 @@ Stack: Java 21 LTS, Spring Boot 4.x, Maven.
 
 ## 14. Documentation Links
 - MoySklad Remap 1.2: https://dev.moysklad.ru/doc/api/remap/1.2/
-- Product vision: `docs/product.md`
+- Product vision: `docs/vision.md`
+- Test plan: `docs/test-plan.md`
 - Backlog: `docs/backlog.md`
