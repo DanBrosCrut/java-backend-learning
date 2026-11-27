@@ -14,7 +14,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -67,21 +67,16 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles HTTP errors returned by the MoySklad API.
+     * Handles a request for a path or static resource that does not exist.
      *
-     * @param ex the exception carrying the upstream status code
-     * @return a 502 response with a status-specific error code
+     * @param ex the exception carrying the missing resource path
+     * @return a 404 response with a consistent error body
      */
-    @ExceptionHandler(HttpClientErrorException.class)
-    public ResponseEntity<ErrorResponse> handleHttpClientErrorException(HttpClientErrorException ex) {
-        String code = switch (ex.getStatusCode().value()) {
-            case 401 -> "MOYSKLAD_UNAUTHORIZED";
-            case 403 -> "MOYSKLAD_FORBIDDEN";
-            default -> "MOYSKLAD_HTTP_ERROR";
-        };
-        log.error("MoySklad HTTP error {}: {}", ex.getStatusCode().value(), ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
-                .body(new ErrorResponse(code, ex.getMessage()));
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFoundException(NoResourceFoundException ex) {
+        log.warn("Resource not found: {}", ex.getResourcePath());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorResponse("NOT_FOUND", "Resource not found: " + ex.getResourcePath()));
     }
 
     /**
@@ -144,6 +139,9 @@ public class GlobalExceptionHandler {
 
     /**
      * Handles any uncaught exception.
+     * <p>
+     * The internal exception details are logged with the stack trace but never exposed to the client,
+     * so error responses stay generic and do not leak implementation details.
      *
      * @param ex the exception
      * @return a 500 response with a generic error code
@@ -152,6 +150,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleException(Exception ex) {
         log.error("Unexpected error", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse("INTERNAL_ERROR", ex.getMessage()));
+                .body(new ErrorResponse("INTERNAL_ERROR", "An unexpected error occurred"));
     }
 }
