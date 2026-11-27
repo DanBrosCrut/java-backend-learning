@@ -1,11 +1,11 @@
 package com.example.moysklad.api.controller;
 
 import com.example.moysklad.api.dto.ErrorResponse;
-import com.example.moysklad.api.exception.CartItemNotFoundException;
-import com.example.moysklad.api.exception.CartStorageException;
 import com.example.moysklad.api.exception.InvalidCatalogOptionException;
 import com.example.moysklad.api.exception.InvalidPaginationException;
 import com.example.moysklad.api.exception.MoyskladApiException;
+import com.example.moysklad.api.exception.OrderConfigurationException;
+import com.example.moysklad.api.exception.OrderValidationFailedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -66,26 +66,19 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void shouldReturn404_whenCartItemIsMissing() {
-        ResponseEntity<ErrorResponse> response =
-                handler.handleCartItemNotFoundException(new CartItemNotFoundException("product-1"));
+    void shouldReturn409_whenOrderValidationFails() {
+        ResponseEntity<ErrorResponse> response = handler.handleOrderValidationFailedException(
+                new OrderValidationFailedException("Order validation failed for 1 position(s): insufficient stock"));
 
-        assertError(response, HttpStatus.NOT_FOUND, "CART_ITEM_NOT_FOUND", "product-1");
+        assertError(response, HttpStatus.CONFLICT, "ORDER_VALIDATION_FAILED", "insufficient stock");
     }
 
     @Test
-    void shouldReturn500WithStaticMessage_whenCartStorageFails() {
-        ResponseEntity<ErrorResponse> response = handler.handleCartStorageException(
-                new CartStorageException("disk full", new IllegalStateException("disk full")));
+    void shouldReturn500_whenOrderIsNotConfigured() {
+        ResponseEntity<ErrorResponse> response = handler.handleOrderConfigurationException(
+                new OrderConfigurationException("set moysklad.orders.organization-id"));
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-        assertThat(response.getBody())
-                .isNotNull()
-                .satisfies(body -> {
-                    assertThat(body.code()).isEqualTo("CART_STORAGE_ERROR");
-                    assertThat(body.message()).isEqualTo("The cart could not be read or written");
-                    assertThat(body.message()).doesNotContain("disk full");
-                });
+        assertError(response, HttpStatus.INTERNAL_SERVER_ERROR, "ORDER_CONFIGURATION_ERROR", "organization-id");
     }
 
     @Test
