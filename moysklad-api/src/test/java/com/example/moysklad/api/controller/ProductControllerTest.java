@@ -1,5 +1,6 @@
 package com.example.moysklad.api.controller;
 
+import com.example.moysklad.api.client.MoyskladClient;
 import com.example.moysklad.api.dto.CatalogConfigView;
 import com.example.moysklad.api.dto.CatalogFilter;
 import com.example.moysklad.api.dto.CatalogOptions;
@@ -7,6 +8,7 @@ import com.example.moysklad.api.dto.PageOptions;
 import com.example.moysklad.api.dto.PagedResponse;
 import com.example.moysklad.api.dto.ProductView;
 import com.example.moysklad.api.dto.SortOptions;
+import com.example.moysklad.api.service.AssortmentCache;
 import com.example.moysklad.api.service.CacheStatus;
 import com.example.moysklad.api.service.CachedResult;
 import com.example.moysklad.api.service.CatalogConfigService;
@@ -46,12 +48,22 @@ class ProductControllerTest {
     @Mock
     private CatalogConfigService catalogConfigService;
 
+    @Mock
+    private MoyskladClient moyskladClient;
+
     private MockMvc mockMvc;
+    private MockMvc validationMockMvc;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new ProductController(productService, catalogConfigService))
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+        validationMockMvc = MockMvcBuilders
+                .standaloneSetup(new ProductController(productService,
+                        new CatalogConfigService(new AssortmentCache(moyskladClient))))
+                .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
 
@@ -117,6 +129,43 @@ class ProductControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string(CACHE_HEADER, "HIT"))
                 .andExpect(jsonPath("$.groups[0]").value("Товары"));
+    }
+
+    @Test
+    void shouldReturnBadRequest_whenSortByIsUnknown() throws Exception {
+        validationMockMvc.perform(get("/api/products").param("sortBy", "unknown"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_CATALOG_OPTION"));
+    }
+
+    @Test
+    void shouldReturnBadRequest_whenOrderIsUnknown() throws Exception {
+        validationMockMvc.perform(get("/api/products").param("order", "sideways"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_CATALOG_OPTION"));
+    }
+
+    @Test
+    void shouldReturnBadRequest_whenPageIsNegative() throws Exception {
+        validationMockMvc.perform(get("/api/products").param("page", "-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PAGINATION"));
+    }
+
+    @Test
+    void shouldReturnBadRequest_whenSizeExceedsMaximum() throws Exception {
+        validationMockMvc.perform(get("/api/products").param("size", "101"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PAGINATION"));
+    }
+
+    @Test
+    void shouldReturnBadRequest_whenQueryExceedsMaximumLength() throws Exception {
+        String query = "x".repeat(CatalogConfigService.MAX_QUERY_LENGTH + 1);
+
+        validationMockMvc.perform(get("/api/products").param("q", query))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_CATALOG_OPTION"));
     }
 
     private void givenParsedOptions() {

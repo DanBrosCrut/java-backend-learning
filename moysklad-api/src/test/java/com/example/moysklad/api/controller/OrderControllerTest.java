@@ -4,6 +4,7 @@ import com.example.moysklad.api.dto.CreateOrderRequest;
 import com.example.moysklad.api.dto.OrderResponse;
 import com.example.moysklad.api.dto.OrderValidationRequest;
 import com.example.moysklad.api.dto.OrderValidationResponse;
+import com.example.moysklad.api.exception.MoyskladApiException;
 import com.example.moysklad.api.exception.OrderValidationFailedException;
 import com.example.moysklad.api.service.OrderService;
 import com.example.moysklad.api.service.OrderValidationService;
@@ -152,5 +153,56 @@ class OrderControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.message").value("positions[0].productId must not be blank"));
+    }
+
+    @Test
+    void shouldReturnValidationError_whenValidateQuantityIsNegative() throws Exception {
+        mockMvc.perform(post("/api/orders/validate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"positions\":[{\"productId\":\"" + PRODUCT_ID + "\",\"quantity\":-1}]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("positions[0].quantity must be at least 1"));
+    }
+
+    @Test
+    void shouldReturnValidationError_whenValidateProductIdIsBlank() throws Exception {
+        mockMvc.perform(post("/api/orders/validate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"positions\":[{\"productId\":\"\",\"quantity\":1}]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("positions[0].productId must not be blank"));
+    }
+
+    @Test
+    void shouldReturnValidationError_whenValidatePositionsAreNull() throws Exception {
+        mockMvc.perform(post("/api/orders/validate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"positions\":null}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("positions must not be empty"));
+    }
+
+    @Test
+    void shouldReturnBadGateway_whenValidateMoyskladApiFails() throws Exception {
+        when(orderValidationService.validate(any(OrderValidationRequest.class)))
+                .thenThrow(new MoyskladApiException("upstream down"));
+
+        mockMvc.perform(post("/api/orders/validate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"positions\":[{\"productId\":\"" + PRODUCT_ID + "\",\"quantity\":2}]}"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.code").value("MOYSKLAD_ERROR"));
+    }
+
+    @Test
+    void shouldReturnValidationError_whenOrderBodyIsMalformed() throws Exception {
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{not-json"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 }

@@ -53,6 +53,7 @@
 | `?priceType=<несуществующий>` | `400 INVALID_CATALOG_OPTION` |
 | `?page=-1` или `?size=0`/`101` | `400 INVALID_PAGINATION` |
 | `?q=неттакоготовара` | `200`, `items: []`, `total: 0` |
+| `?q=<101+ символов>` | `400 INVALID_CATALOG_OPTION` |
 | МойСклад недоступен при пустом кеше | `502 MOYSKLAD_ERROR` |
 
 ### GET /api/products/config
@@ -74,7 +75,10 @@
 | Остатка не хватает | `200`, `available:false`, `missing` с `id/requested/available` |
 | Неизвестный товар | `200`, `available:false`, `available: 0` |
 | `positions: []` | `200`, `available:true` (пустая проверка валидна) |
-| `quantity: -1` | `200`, позиция в `missing` (защиты нет — кандидат на hardening) |
+| `positions: null` / `{}` | `200`, `available:true` (валидации нет) |
+| `quantity: 0` | `200`, `available:true` (валидации нет) |
+| пустой `id` | `200`, `available:false`, позиция в `missing` с `id:""` и `available:0` (валидации нет) |
+| `quantity: -1` | `200`, `available:true` — отрицательное количество молча считается доступным (known gap / hardening) |
 | Некорректный JSON | `400 VALIDATION_ERROR` |
 | МойСклад недоступен | `502 MOYSKLAD_ERROR` |
 
@@ -121,6 +125,83 @@
 | `GET /health` | `200 ok` |
 | `GET /actuator/health` | `200`, `{"status":"UP"}` |
 | `/favicon.ico`, неизвестный путь | `404 NOT_FOUND` (#105) |
+
+## Негативные сценарии (чек-лист)
+
+Сводный чек-лист негативных сценариев. Для каждого пункта указано фактическое поведение
+текущего кода (HTTP-статус, код `ErrorResponse`, тело). Случаи, где поведение отклоняется
+от целевого, помечены ссылкой на «Известные ограничения» ниже.
+
+- **Сценарий** — пустая корзина в `/api/availability`. **Шаги** — `POST /api/availability`
+  с `{"positions":[]}`. **Ожидаемый результат** — `200`, `{"available":true,"missing":[]}`.
+- **Сценарий** — пустая корзина в `/api/orders/validate`. **Шаги** — `POST /api/orders/validate`
+  с `{"positions":[]}`. **Ожидаемый результат** — `400 VALIDATION_ERROR`
+  (`positions must not be empty`).
+- **Сценарий** — пустая корзина в `/api/orders`. **Шаги** — `POST /api/orders` с
+  `{"positions":[]}`. **Ожидаемый результат** — `400 VALIDATION_ERROR`
+  (`positions must not be empty`).
+- **Сценарий** — отрицательное количество в availability. **Шаги** — `POST /api/availability`
+  с `quantity:-1`. **Ожидаемый результат** — `200`, `available:true` (молча считается
+  доступным; см. ограничения).
+- **Сценарий** — отрицательное количество в заказах. **Шаги** — `POST /api/orders/validate`
+  или `POST /api/orders` с `quantity:-1`. **Ожидаемый результат** — `400 VALIDATION_ERROR`
+  (`must be at least 1`).
+- **Сценарий** — `quantity:0` в availability. **Шаги** — `POST /api/availability` с
+  `quantity:0`. **Ожидаемый результат** — `200`, `available:true` (валидации нет).
+- **Сценарий** — `quantity:0` в заказах. **Шаги** — `POST /api/orders/validate` с
+  `quantity:0`. **Ожидаемый результат** — `400 VALIDATION_ERROR` (`must be at least 1`).
+- **Сценарий** — пустой `productId` в заказах. **Шаги** — `POST /api/orders/validate` с
+  `productId:""`. **Ожидаемый результат** — `400 VALIDATION_ERROR` (`must not be blank`).
+- **Сценарий** — пустой `id` в availability. **Шаги** — `POST /api/availability` с
+  `{"id":"","quantity":1}`. **Ожидаемый результат** — `200`, `available:false`,
+  `missing[0].id:""`, `missing[0].available:0` (валидации нет).
+- **Сценарий** — невалидный/неизвестный `productId`. **Шаги** — `POST /api/availability`
+  или `/api/orders/validate` с несуществующим UUID. **Ожидаемый результат** — `200`,
+  `available:false`/`valid:false`, `available:0`.
+- **Сценарий** — `?size=101`. **Шаги** — `GET /api/products?size=101`. **Ожидаемый
+  результат** — `400 INVALID_PAGINATION`.
+- **Сценарий** — `page` за границей. **Шаги** — `GET /api/products?page=-1`.
+  **Ожидаемый результат** — `400 INVALID_PAGINATION`.
+- **Сценарий** — нечисловые `page`/`size`. **Шаги** — `GET /api/products?page=abc`.
+  **Ожидаемый результат** — `500 INTERNAL_ERROR` (см. ограничения).
+- **Сценарий** — неизвестный `sortBy`. **Шаги** — `GET /api/products?sortBy=unknown`.
+  **Ожидаемый результат** — `400 INVALID_CATALOG_OPTION`.
+- **Сценарий** — неизвестный `order`. **Шаги** — `GET /api/products?order=sideways`.
+  **Ожидаемый результат** — `400 INVALID_CATALOG_OPTION`.
+- **Сценарий** — неизвестный `priceType`. **Шаги** — `GET /api/products?priceType=<несуществующий>`.
+  **Ожидаемый результат** — `400 INVALID_CATALOG_OPTION`.
+- **Сценарий** — неизвестный `fields`. **Шаги** — `GET /api/products?fields=unknown`.
+  **Ожидаемый результат** — `400 INVALID_CATALOG_OPTION`.
+- **Сценарий** — `q` длиннее 100 символов. **Шаги** — `GET /api/products?q=<101+ символов>`.
+  **Ожидаемый результат** — `400 INVALID_CATALOG_OPTION`.
+- **Сценарий** — malformed JSON. **Шаги** — `POST` с телом `{not-json`. **Ожидаемый
+  результат** — `400 VALIDATION_ERROR`.
+- **Сценарий** — некорректный `Content-Type`. **Шаги** — `POST /api/availability` с
+  `Content-Type: text/plain`. **Ожидаемый результат** — `500 INTERNAL_ERROR`
+  (см. ограничения).
+- **Сценарий** — МойСклад отвечает HTTP-ошибкой. **Шаги** — `GET /api/products` при
+  4xx/5xx от Remap. **Ожидаемый результат** — `502 MOYSKLAD_ERROR`.
+- **Сценарий** — МойСклад недоступен по сети. **Шаги** — `GET /api/products` при
+  обрыве соединения/таймауте. **Ожидаемый результат** — `500 INTERNAL_ERROR`
+  (см. ограничения).
+- **Сценарий** — дубликаты позиций. **Шаги** — `POST /api/orders/validate` с двумя
+  одинаковыми `productId`. **Ожидаемый результат** — `200`, количества суммируются,
+  одна ошибка на товар.
+
+### Известные ограничения (кандидаты на hardening)
+
+Задокументированные gap текущей реализации — не баги тест-плана, а кандидаты на hardening:
+
+- **Сетевой сбой МойСклад** (`ResourceAccessException`/таймаут) при пустом кеше →
+  `500 INTERNAL_ERROR` вместо `502 MOYSKLAD_ERROR`: `MoyskladClient` ловит только
+  `HttpStatusCodeException`, сетевые ошибки уходят в общий обработчик.
+- **Некорректный `Content-Type`** → `500 INTERNAL_ERROR` вместо `415`: нет обработчика
+  `HttpMediaTypeNotSupportedException`.
+- **Нечисловые `page`/`size`** (`?page=abc`) → `500 INTERNAL_ERROR` вместо
+  `400 INVALID_PAGINATION`: нет обработчика `MethodArgumentTypeMismatchException`.
+- **Отсутствие bean-валидации в `AvailabilityCheckRequest`**: отрицательные/нулевые
+  `quantity` и пустой `id` не отклоняются на входе и дают `available:true` или пустой `id`
+  в `missing`.
 
 ## Аудит обработки ошибок и fallback'ов
 
