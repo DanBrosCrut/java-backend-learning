@@ -25,6 +25,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -35,6 +36,9 @@ class CatalogConfigServiceTest {
 
     @Mock
     private MoyskladClient moyskladClient;
+
+    @Mock
+    private AssortmentCache assortmentCache;
 
     private CatalogConfigService catalogConfigService;
 
@@ -168,6 +172,17 @@ class CatalogConfigServiceTest {
                 .isInstanceOf(InvalidCatalogOptionException.class)
                 .hasMessageContaining("sideways")
                 .hasMessageContaining("asc,desc");
+    }
+
+    @Test
+    void shouldPassTrueToAssortmentCache_whenDescribeIsInvalidated() {
+        when(assortmentCache.get(true)).thenReturn(
+                new CachedResult<>(new RemapAssortmentResponse(List.of()), CacheStatus.MISS));
+        CatalogConfigService service = new CatalogConfigService(assortmentCache);
+
+        service.describe(true);
+
+        verify(assortmentCache).get(true);
     }
 
     private static RemapAssortmentRow row(String group, String priceType) {

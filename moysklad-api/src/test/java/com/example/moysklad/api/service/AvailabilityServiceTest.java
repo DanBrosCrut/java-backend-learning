@@ -84,4 +84,64 @@ class AvailabilityServiceTest {
         assertThat(response.missing()).containsExactly(
                 new AvailabilityCheckResponse.MissingPosition("00000000-0000-0000-0000-000000000000", 1, 0));
     }
+
+    @Test
+    void shouldReturnAvailableTrue_whenPositionsAreEmpty() {
+        when(moyskladClient.getCurrentStocks()).thenReturn(STOCK_ROWS);
+        AvailabilityCheckRequest request = new AvailabilityCheckRequest(List.of());
+
+        AvailabilityCheckResponse response = availabilityService.checkAvailability(request);
+
+        assertThat(response.available()).isTrue();
+        assertThat(response.missing()).isEmpty();
+    }
+
+    @Test
+    void shouldReturnAvailableTrue_whenPositionsAreNull() {
+        when(moyskladClient.getCurrentStocks()).thenReturn(STOCK_ROWS);
+        AvailabilityCheckRequest request = new AvailabilityCheckRequest(null);
+
+        AvailabilityCheckResponse response = availabilityService.checkAvailability(request);
+
+        assertThat(response.available()).isTrue();
+        assertThat(response.missing()).isEmpty();
+    }
+
+    @Test
+    void shouldReturnAvailableTrue_whenQuantityIsZero() {
+        when(moyskladClient.getCurrentStocks()).thenReturn(STOCK_ROWS);
+        AvailabilityCheckRequest request = new AvailabilityCheckRequest(List.of(
+                new Position(PRODUCT_ID, 0)));
+
+        AvailabilityCheckResponse response = availabilityService.checkAvailability(request);
+
+        assertThat(response.available()).isTrue();
+    }
+
+    @Test
+    void shouldReturnAvailableTrue_whenQuantityIsNegative() {
+        // Known gap (hardening candidate): a negative quantity is silently treated as available.
+        when(moyskladClient.getCurrentStocks()).thenReturn(STOCK_ROWS);
+        AvailabilityCheckRequest request = new AvailabilityCheckRequest(List.of(
+                new Position(PRODUCT_ID, -1)));
+
+        AvailabilityCheckResponse response = availabilityService.checkAvailability(request);
+
+        assertThat(response.available()).isTrue();
+    }
+
+    @Test
+    void shouldReturnMissingWithZeroAvailable_whenProductIdIsBlank() {
+        when(moyskladClient.getCurrentStocks()).thenReturn(STOCK_ROWS);
+        AvailabilityCheckRequest request = new AvailabilityCheckRequest(List.of(
+                new Position("", 1)));
+
+        AvailabilityCheckResponse response = availabilityService.checkAvailability(request);
+
+        assertThat(response.available()).isFalse();
+        assertThat(response.missing()).singleElement().satisfies(missing -> {
+            assertThat(missing.id()).isEmpty();
+            assertThat(missing.available()).isZero();
+        });
+    }
 }
