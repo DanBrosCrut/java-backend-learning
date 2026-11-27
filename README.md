@@ -235,52 +235,6 @@ curl -X POST "http://localhost:8080/api/availability" \
 
 Ответ: `{"available":true,"missing":[]}`; если остатка не хватает — `available: false` и список `missing` с полями `id`, `requested`, `available`.
 
-### Корзина (файловая)
-
-Корзина хранится в JSON-файле `data/cart.json` (путь задаётся свойством `app.cart.file`).
-Файл переживает перезапуск приложения и создаётся автоматически при первом добавлении товара.
-Каталог, цены и остатки по-прежнему берутся из МойСклад — собственной БД нет.
-
-#### POST /api/cart/items
-
-Добавляет товар. Если товар уже в корзине, количество увеличивается.
-
-```bash
-curl -X POST "http://localhost:8080/api/cart/items" \
-  -H "Content-Type: application/json" \
-  -d '{"productId":"<uuid-товара>","quantity":2}'
-```
-
-Ответ `201 Created`: `{"productId":"<uuid-товара>","quantity":2}`.
-`quantity < 1` или пустой `productId` → `400 VALIDATION_ERROR`.
-
-#### GET /api/cart
-
-```bash
-curl "http://localhost:8080/api/cart"
-```
-
-Ответ: `{"items":[{"productId":"<uuid-товара>","quantity":2}],"totalQuantity":2}`.
-Если файла ещё нет — пустая корзина.
-
-#### DELETE /api/cart/items/{productId}
-
-```bash
-curl -X DELETE "http://localhost:8080/api/cart/items/<uuid-товара>"
-```
-
-Ответ `204 No Content`. Если товара нет в корзине → `404 CART_ITEM_NOT_FOUND`.
-
-Файл корзины — JSON-массив позиций:
-
-```json
-[
-  {"productId": "<uuid-товара>", "quantity": 2}
-]
-```
-
-Файл исключён из Git (`moysklad-api/data/.gitignore`); его можно удалить — при следующем запросе корзина будет пустой.
-
 ### POST /api/orders/validate
 
 Проверяет позиции перед оформлением заказа, но **не создаёт заказ**.
@@ -314,6 +268,30 @@ curl -X POST "http://localhost:8080/api/orders/validate" \
 Альтернативы — товары в наличии: сначала из той же группы, затем из других, не больше трёх.
 Пустой список `positions` или `quantity < 1` → `400 VALIDATION_ERROR`.
 
+### POST /api/orders
+
+Создаёт заказ покупателя (customer order) в МойСклад. Бэкенд **stateless**: корзина хранится
+у клиента или AI-агента, API получает полный список позиций. Перед созданием позиции
+проверяются по текущим остаткам; при нехватке заказ не создаётся.
+
+```bash
+curl -X POST "http://localhost:8080/api/orders" \
+  -H "Content-Type: application/json" \
+  -d '{"positions":[{"productId":"<uuid-товара>","quantity":2}]}'
+```
+
+Ответ `201 Created`:
+
+```json
+{"id":"<uuid-заказа>","name":"00001","sum":78012.98}
+```
+
+- Остатка не хватает → `409 ORDER_VALIDATION_FAILED` с описанием недостающих позиций
+  (подробности — через `POST /api/orders/validate`).
+- Не заданы организация/контрагент → `500 ORDER_CONFIGURATION_ERROR`.
+- Цена позиции берётся из первого типа цены витрины; без цены — `0`.
+- Для создания заказа нужны `MOYSKLAD_ORDER_ORGANIZATION_ID` и `MOYSKLAD_ORDER_AGENT_ID` (см. «Конфигурация»).
+
 ### Формат ошибок
 
 Все ошибки возвращаются в едином виде:
@@ -325,7 +303,7 @@ curl -X POST "http://localhost:8080/api/orders/validate" \
 }
 ```
 
-Коды: `INVALID_CATALOG_OPTION`, `INVALID_PAGINATION`, `VALIDATION_ERROR` (400), `CART_ITEM_NOT_FOUND`, `NOT_FOUND` (404), `CART_STORAGE_ERROR`, `INTERNAL_ERROR` (500), `MOYSKLAD_ERROR` (502).
+Коды: `INVALID_CATALOG_OPTION`, `INVALID_PAGINATION`, `VALIDATION_ERROR` (400), `ORDER_VALIDATION_FAILED` (409), `INTERNAL_ERROR`, `ORDER_CONFIGURATION_ERROR` (500), `MOYSKLAD_ERROR` (502).
 
 ## Конфигурация
 
@@ -341,11 +319,10 @@ moysklad:
   base-url: https://api.moysklad.ru/api/remap/1.2
   # размер страницы при чтении ассортимента (Remap: максимум 1000)
   assortment-page-size: 1000
-
-app:
-  cart:
-    # файл корзины относительно рабочего каталога приложения
-    file: data/cart.json
+  orders:
+    # организация-продавец и контрагент-покупатель для POST /api/orders
+    organization-id: ${MOYSKLAD_ORDER_ORGANIZATION_ID:}
+    agent-id: ${MOYSKLAD_ORDER_AGENT_ID:}
 ```
 
 Профили вынесены в отдельные файлы:
@@ -385,6 +362,15 @@ app:
 ```
 MOYSKLAD_TOKEN=ваш_токен_без_кавычек
 ```
+
+Для `POST /api/orders` дополнительно:
+
+```
+MOYSKLAD_ORDER_ORGANIZATION_ID=uuid-организации-продавца
+MOYSKLAD_ORDER_AGENT_ID=uuid-контрагента-покупателя
+```
+
+ID берутся из МойСклад: организация — `/entity/organization`, контрагент — `/entity/counterparty`.
 
 Почему в корне: `application.yml` подключает `optional:file:../.env[.properties]`, а приложение запускается из каталога `moysklad-api`, поэтому `../.env` — это корень репозитория.
 

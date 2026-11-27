@@ -1,11 +1,11 @@
 package com.example.moysklad.api.controller;
 
 import com.example.moysklad.api.dto.ErrorResponse;
-import com.example.moysklad.api.exception.CartItemNotFoundException;
-import com.example.moysklad.api.exception.CartStorageException;
 import com.example.moysklad.api.exception.InvalidCatalogOptionException;
 import com.example.moysklad.api.exception.InvalidPaginationException;
 import com.example.moysklad.api.exception.MoyskladApiException;
+import com.example.moysklad.api.exception.OrderConfigurationException;
+import com.example.moysklad.api.exception.OrderValidationFailedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -80,29 +80,29 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles a cart position that does not exist.
+     * Handles an order that could not be created because stock is insufficient.
      *
-     * @param ex the exception carrying the missing product ID
-     * @return a 404 response with a consistent error body
+     * @param ex the exception summarizing the failed positions
+     * @return a 409 response with a consistent error body
      */
-    @ExceptionHandler(CartItemNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleCartItemNotFoundException(CartItemNotFoundException ex) {
-        log.warn("Cart item not found: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new ErrorResponse("CART_ITEM_NOT_FOUND", ex.getMessage()));
+    @ExceptionHandler(OrderValidationFailedException.class)
+    public ResponseEntity<ErrorResponse> handleOrderValidationFailedException(OrderValidationFailedException ex) {
+        log.warn("Order validation failed: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse("ORDER_VALIDATION_FAILED", ex.getMessage()));
     }
 
     /**
-     * Handles failures of the file-based cart storage.
+     * Handles missing organization or agent configuration for order creation.
      *
-     * @param ex the exception carrying the failed operation
+     * @param ex the exception describing the missing configuration
      * @return a 500 response with a consistent error body
      */
-    @ExceptionHandler(CartStorageException.class)
-    public ResponseEntity<ErrorResponse> handleCartStorageException(CartStorageException ex) {
-        log.error("Cart storage error: {}", ex.getMessage(), ex);
+    @ExceptionHandler(OrderConfigurationException.class)
+    public ResponseEntity<ErrorResponse> handleOrderConfigurationException(OrderConfigurationException ex) {
+        log.error("Order creation is not configured: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse("CART_STORAGE_ERROR", "The cart could not be read or written"));
+                .body(new ErrorResponse("ORDER_CONFIGURATION_ERROR", ex.getMessage()));
     }
 
     /**

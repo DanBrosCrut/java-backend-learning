@@ -1,7 +1,11 @@
 package com.example.moysklad.api.controller;
 
+import com.example.moysklad.api.dto.CreateOrderRequest;
+import com.example.moysklad.api.dto.OrderResponse;
 import com.example.moysklad.api.dto.OrderValidationRequest;
 import com.example.moysklad.api.dto.OrderValidationResponse;
+import com.example.moysklad.api.exception.OrderValidationFailedException;
+import com.example.moysklad.api.service.OrderService;
 import com.example.moysklad.api.service.OrderValidationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -22,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * HTTP tests for {@link OrderController}.
+ * HTTP tests for {@link OrderController}: pre-order validation and customer order creation.
  */
 @ExtendWith(MockitoExtension.class)
 class OrderControllerTest {
@@ -32,12 +37,15 @@ class OrderControllerTest {
     @Mock
     private OrderValidationService orderValidationService;
 
+    @Mock
+    private OrderService orderService;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new OrderController(orderValidationService))
+                .standaloneSetup(new OrderController(orderValidationService, orderService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -85,5 +93,64 @@ class OrderControllerTest {
                         .content("{not-json"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void shouldCreateOrder_whenRequestIsValid() throws Exception {
+        when(orderService.create(any(CreateOrderRequest.class)))
+                .thenReturn(new OrderResponse("order-1", "00001", new BigDecimal("100.00")));
+
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"positions\":[{\"productId\":\"" + PRODUCT_ID + "\",\"quantity\":2}]}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("order-1"))
+                .andExpect(jsonPath("$.name").value("00001"))
+                .andExpect(jsonPath("$.sum").value(100.00));
+
+        verify(orderService).create(new CreateOrderRequest(
+                List.of(new CreateOrderRequest.Position(PRODUCT_ID, 2))));
+    }
+
+    @Test
+    void shouldReturnConflict_whenOrderValidationFails() throws Exception {
+        when(orderService.create(any(CreateOrderRequest.class)))
+                .thenThrow(new OrderValidationFailedException("Order validation failed for 1 position(s)"));
+
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"positions\":[{\"productId\":\"" + PRODUCT_ID + "\",\"quantity\":2}]}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ORDER_VALIDATION_FAILED"));
+    }
+
+    @Test
+    void shouldReturnValidationError_whenOrderPositionsAreEmpty() throws Exception {
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"positions\":[]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("positions must not be empty"));
+    }
+
+    @Test
+    void shouldReturnValidationError_whenOrderQuantityIsNegative() throws Exception {
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"positions\":[{\"productId\":\"" + PRODUCT_ID + "\",\"quantity\":-1}]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("positions[0].quantity must be at least 1"));
+    }
+
+    @Test
+    void shouldReturnValidationError_whenOrderProductIdIsBlank() throws Exception {
+        mockMvc.perform(post("/api/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"positions\":[{\"productId\":\"\",\"quantity\":1}]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("positions[0].productId must not be blank"));
     }
 }

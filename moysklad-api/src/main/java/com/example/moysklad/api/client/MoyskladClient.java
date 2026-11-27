@@ -2,12 +2,15 @@ package com.example.moysklad.api.client;
 
 import com.example.moysklad.api.client.dto.RemapAssortmentResponse;
 import com.example.moysklad.api.client.dto.RemapAssortmentRow;
+import com.example.moysklad.api.client.dto.RemapCustomerOrderDto;
+import com.example.moysklad.api.client.dto.RemapCustomerOrderResponseDto;
 import com.example.moysklad.api.client.dto.RemapStockCurrentRow;
 import com.example.moysklad.api.config.MoyskladProperties;
 import com.example.moysklad.api.exception.MoyskladApiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
@@ -120,6 +123,36 @@ public class MoyskladClient {
      */
     public List<RemapStockCurrentRow> getCurrentStocks(Instant changedSince) {
         return fetchCurrentStocks(Objects.requireNonNull(changedSince, "changedSince must not be null"));
+    }
+
+    /**
+     * Creates a customer order in the Remap 1.2 API ({@code POST /entity/customerorder}).
+     * <p>
+     * The payload references the organization, the agent and the ordered products through
+     * meta links. On an HTTP error the upstream status and response body are logged and
+     * wrapped into a {@link MoyskladApiException}.
+     *
+     * @param order the customer order payload
+     * @return the created order with its ID, number and sum
+     * @throws MoyskladApiException when the request fails with an HTTP error (4xx or 5xx)
+     */
+    public RemapCustomerOrderResponseDto createCustomerOrder(RemapCustomerOrderDto order) {
+        try {
+            return restClient.post()
+                    .uri("/entity/customerorder")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(order)
+                    .retrieve()
+                    .body(RemapCustomerOrderResponseDto.class);
+        } catch (HttpStatusCodeException ex) {
+            String details = errorDetails(ex);
+            log.error("MoySklad customer order creation failed with status {}: {}",
+                    ex.getStatusCode().value(), details);
+            throw new MoyskladApiException(
+                    "MoySklad customer order creation failed with status "
+                            + ex.getStatusCode().value() + ": " + details,
+                    ex);
+        }
     }
 
     private List<RemapStockCurrentRow> fetchCurrentStocks(Instant changedSince) {
